@@ -61,7 +61,7 @@ public class LoadServer : MonoBehaviour
         {
             if (int.TryParse(port, out int portNumber))
             {
-                ClientStartup.ConnectToServer(ipAddress, portNumber);
+                GameClient.ConnectToServer(ipAddress, portNumber);
             }
             else
             {
@@ -112,7 +112,7 @@ public class LoadServer : MonoBehaviour
     {
         statusText.text = $"Connecting";
         Debug.Log($"Connecting to {result.IPV4Address} : {result.Ports[0].Num}");
-        ClientStartup.ConnectToServer(result.IPV4Address, (ushort)result.Ports[0].Num);
+        GameClient.ConnectToServer(result.IPV4Address, (ushort)result.Ports[0].Num);
     }
 
     public void GetMultiplayerServerDetails(string Session)
@@ -140,7 +140,7 @@ public class LoadServer : MonoBehaviour
         {
             statusText.text = $"Connecting";
             Debug.Log($"Connecting to {response.IPV4Address} : {response.Ports[0].Num}");
-            ClientStartup.ConnectToServer(response.IPV4Address, (ushort)response.Ports[0].Num);
+            GameClient.ConnectToServer(response.IPV4Address, (ushort)response.Ports[0].Num);
         }
         else
         {

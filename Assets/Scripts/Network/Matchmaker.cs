@@ -30,7 +30,7 @@ public class Matchmaker : MonoBehaviour
                 {
                     Entity = new EntityKey
                     {
-                        Id = ClientStartup.EntityId,
+                        Id = GameClient.EntityId,
                         Type = "title_player_account"
                     },
                     Attributes = new MatchmakingPlayerAttributes

@@ -95,6 +95,7 @@ namespace Game
                 nameplate.gameObject.SetActive(false);
                 GetAccountInfoRequest request = new GetAccountInfoRequest();
                 PlayFabClientAPI.GetAccountInfo(request, Success, Fail);
+                CameraFollow.Instance.followTarget = transform;
             }
 
         }
@@ -193,7 +194,7 @@ namespace Game
             yield return new WaitForSecondsRealtime(3f);
             _currentHealth = maxHealth;
             healthNetworkVariable.Value = _currentHealth;
-            OnRespawnClientRpc(Vector3.zero);
+            OnRespawnClientRpc(GameServer.Instance.GetSpawnPoint());
         }
     }
 }

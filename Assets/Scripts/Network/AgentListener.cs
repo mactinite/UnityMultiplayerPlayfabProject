@@ -5,7 +5,12 @@ using System;
 using System.Collections.Generic;
 using PlayFab.MultiplayerAgent.Model;
 using MLAPI;
+using PlayFab.ServerModels;
 
+/// <summary>
+/// AgentListener provides callbacks to GameServer to allow for deployment on playfab dedicated servers.
+/// Use this only if you are deploying on Playfab hosted servers, as it interfaces with the MultiplayerAgentAPI.
+/// </summary>
 public class AgentListener : MonoBehaviour
 {
     private List<ConnectedPlayer> _connectedPlayers;
@@ -15,11 +20,12 @@ public class AgentListener : MonoBehaviour
     {
         if (Application.isEditor) return;
 
-        var args = GetCommandlineArgs();
-        Debug.Log($"Reading Args {args.Values.ToString()}");
+        var args = CommandLineUtility.GetArgs();
+
+        Debug.Log($"AgentListener: Reading Args");
         if (args.TryGetValue("-mode", out string mlapiValue))
         {
-            if(mlapiValue == "server")
+            if (mlapiValue == "server")
             {
                 StartRemoteServer();
             }
@@ -27,9 +33,12 @@ public class AgentListener : MonoBehaviour
 
     }
 
+
+
+
     private void StartRemoteServer()
     {
-        Debug.Log("Starting Remote Server");
+        Debug.Log("AgentListener: Starting Remote Server");
         _connectedPlayers = new List<ConnectedPlayer>();
         PlayFabMultiplayerAgentAPI.Start();
         PlayFabMultiplayerAgentAPI.IsDebugging = Debugging;
@@ -40,13 +49,40 @@ public class AgentListener : MonoBehaviour
 
         GameServer.Instance.OnPlayerAdded += OnPlayerAdded;
         GameServer.Instance.OnPlayerRemoved += OnPlayerRemoved;
+        GameServer.Instance.PlayerIdentityApprovalCallback += ApprovePlayer;
 
         StartCoroutine(ReadyForPlayers());
     }
 
+
+    /// <summary>
+    /// Checks if there is an account with the playfab id and returns the username along with approving the connection.
+    /// </summary>
+    /// <param name="playerID"></param>
+    /// <param name="callback"></param>
+    public void ApprovePlayer(string playerID, PlayerIdentityVerificationDelegate callback)
+    {
+        Debug.Log("AgentListener: Begin Playfab user approval.");
+        PlayFabServerAPI.GetUserAccountInfo(new GetUserAccountInfoRequest
+        {
+            PlayFabId = playerID,
+        },
+       success =>
+       {
+           Debug.Log("AgentListener: Playfab user found");
+           callback(true, success.UserInfo.Username);
+       },
+       fail =>
+       {
+           Debug.Log("AgentListener: Invalid Playfab ID");
+           callback(false, "");
+       }); ;
+
+    }
+
     IEnumerator ReadyForPlayers()
     {
-        Debug.Log("Moving To Ready");
+        Debug.Log("AgentListener: Moving To Ready");
         yield return new WaitForSeconds(.5f);
         PlayFabMultiplayerAgentAPI.ReadyForPlayers();
     }
@@ -54,7 +90,7 @@ public class AgentListener : MonoBehaviour
     private void OnServerActive()
     {
         GameServer.Instance.StartServer();
-        Debug.Log("Server Started From Agent Activation");
+        Debug.Log("AgentListener: Server Started From Agent Activation");
     }
 
     private void OnPlayerRemoved(string playfabId)
@@ -77,7 +113,7 @@ public class AgentListener : MonoBehaviour
 
     private void OnShutdown()
     {
-        Debug.Log("Server is shutting down");
+        Debug.Log("AgentListener: Server is shutting down");
         foreach (var conn in GameServer.Instance.Connections)
         {
             NetworkManager.Singleton.DisconnectClient(conn.Value.ClientId);
@@ -93,7 +129,7 @@ public class AgentListener : MonoBehaviour
 
     private void OnMaintenance(DateTime? NextScheduledMaintenanceUtc)
     {
-        Debug.LogFormat("Maintenance scheduled for: {0}", NextScheduledMaintenanceUtc.Value.ToLongDateString());
+        Debug.LogFormat("AgentListener: Maintenance scheduled for: {0}", NextScheduledMaintenanceUtc.Value.ToLongDateString());
         // TODO: Send Maintenance data via RPC. 
         //foreach (var conn in GameServer.Instance.Connections)
         //{
@@ -102,25 +138,5 @@ public class AgentListener : MonoBehaviour
         //        ScheduledMaintenanceUTC = (DateTime)NextScheduledMaintenanceUtc
         //    });
         //}
-    }
-
-    private Dictionary<string, string> GetCommandlineArgs()
-    {
-        Dictionary<string, string> argDictionary = new Dictionary<string, string>();
-
-        var args = System.Environment.GetCommandLineArgs();
-
-        for (int i = 0; i < args.Length; ++i)
-        {
-            var arg = args[i].ToLower();
-            if (arg.StartsWith("-"))
-            {
-                var value = i < args.Length - 1 ? args[i + 1].ToLower() : null;
-                value = (value?.StartsWith("-") ?? false) ? null : value;
-
-                argDictionary.Add(arg, value);
-            }
-        }
-        return argDictionary;
     }
 }

@@ -11,28 +11,22 @@ using System.Text;
 using UnityEngine.UI;
 using MLAPI.Transports.UNET;
 
-public class ClientStartup : MonoBehaviour
+/// <summary>
+/// Right now this handles authenticating with playfab and launching the network client and manipulating the UI. 
+/// Handles playfab authentication for all client types.
+/// </summary>
+public class GameClient : MonoBehaviour
 {
     public GameObject signInDisplay;
-
     PlayFabAuthService _authService;
     NetworkManager _nm;
-
     public static string EntityId;
-
     public TMP_Text statusText;
     public GameObject authenticationPanel;
     public TMP_InputField usernameInput;
     public TMP_InputField passwordInput;
     public TMP_Text loginErrorText;
-    public Button submitButton;
-    public Button playButton;
-
-    public Button logoutButton;
-
     public Toggle rememberMeToggle;
-    public GameObject findServerPanel;
-
     public CameraFollow cameraFollow;
 
     public void Start()
@@ -40,8 +34,8 @@ public class ClientStartup : MonoBehaviour
 
 
         bool isServer = false;
-        var args = GetCommandlineArgs();
-        Debug.Log($"Reading Args {args.Values.ToString()}");
+        var args = CommandLineUtility.GetArgs();
+        Debug.Log($"Reading Args");
         if (args.TryGetValue("-mode", out string mlapiValue))
         {
             if (mlapiValue == "server")
@@ -50,23 +44,24 @@ public class ClientStartup : MonoBehaviour
             }
         }
 
+
         if (!isServer)
         {
             _authService = PlayFabAuthService.Instance;
             _authService.InfoRequestParams = new GetPlayerCombinedInfoRequestParams();
             _authService.InfoRequestParams.GetUserAccountInfo = true;
-            StartClient();
+            ActivateClient();
             _authService.Authenticate(Authtypes.UsernameAndPassword);
             loginErrorText.gameObject.SetActive(false);
-            submitButton.onClick.AddListener(SubmitAuth);
-            logoutButton.onClick.AddListener(Logout);
-
+        } else
+        {
+            // when running as a dedicated server we authenticate silently.
+            _authService.Authenticate(Authtypes.Silent);
+            
         }
-
-
     }
 
-    public void StartClient()
+    public void ActivateClient()
     {
         PlayFabAuthService.OnDisplayAuthentication += OnDisplayAuth;
         PlayFabAuthService.OnLoginSuccess += OnLoginSuccess;
@@ -118,21 +113,7 @@ public class ClientStartup : MonoBehaviour
 
     private void OnConnected(ulong ClientId)
     {
-        _authService.Authenticate();
-        if (ClientId == NetworkManager.Singleton.LocalClientId)
-        {
-            if (NetworkManager.Singleton.ConnectedClients.TryGetValue(ClientId,
-            out var networkedClient))
-            {
-                var player = networkedClient.PlayerObject;
-                if (player)
-                {
-                    cameraFollow.followTarget = player.transform;
-                    authenticationPanel.SetActive(false);
-                    findServerPanel.SetActive(false);
-                }
-            }
-        }
+        // client connected to server
     }
 
     private void OnLoginSuccess(LoginResult success)
@@ -147,10 +128,7 @@ public class ClientStartup : MonoBehaviour
         if (authenticationPanel.activeSelf)
         {
             authenticationPanel.SetActive(false);
-            findServerPanel.SetActive(true);
         }
-        logoutButton.gameObject.SetActive(false);
-        playButton.gameObject.SetActive(false);
         string statusMessage = $"Getting Account Info";
         statusText.text = statusMessage;
         Debug.Log(statusMessage);
@@ -158,8 +136,6 @@ public class ClientStartup : MonoBehaviour
         {
             _authService.Username = success.AccountInfo.Username;
             string statusMessage = $"Welcome back, {success.AccountInfo.Username}.";
-            logoutButton.gameObject.SetActive(true);
-            playButton.gameObject.SetActive(true);
             statusText.text = statusMessage;
             Debug.Log(statusMessage);
         }, (error) =>
@@ -168,37 +144,13 @@ public class ClientStartup : MonoBehaviour
             loginErrorText.text = statusMessage;
             Debug.Log(statusMessage);
             authenticationPanel.SetActive(true);
-            findServerPanel.SetActive(false);
         }
         );
-
-
-
     }
 
     private void OnDisplayAuth()
     {
         authenticationPanel.SetActive(true);
-    }
-
-    private Dictionary<string, string> GetCommandlineArgs()
-    {
-        Dictionary<string, string> argDictionary = new Dictionary<string, string>();
-
-        var args = System.Environment.GetCommandLineArgs();
-
-        for (int i = 0; i < args.Length; ++i)
-        {
-            var arg = args[i].ToLower();
-            if (arg.StartsWith("-"))
-            {
-                var value = i < args.Length - 1 ? args[i + 1].ToLower() : null;
-                value = (value?.StartsWith("-") ?? false) ? null : value;
-
-                argDictionary.Add(arg, value);
-            }
-        }
-        return argDictionary;
     }
 
 }

@@ -1,20 +1,16 @@
 using MLAPI;
-using MLAPI.Messaging;
-using PlayFab;
-using PlayFab.ServerModels;
-using PlayFab.MultiplayerAgent.Model;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using mactinite.ToolboxCommons;
-using MLAPI.Serialization.Pooled;
 using System.Text;
-using System.IO;
-using MLAPI.Serialization;
 using MLAPI.SceneManagement;
 
+/// <summary>
+/// Game Server is the first custom layer on top of network manager. 
+/// Provides methods to host multiplayer games either as a dedicated server or client host.
+/// It provides extension points to (hopefully) facilitate 3rd party integration (Playfab, Steam, Etc).
+/// </summary>
 public class GameServer : SingletonMonobehavior<GameServer>
 {
     private NetworkManager netManager;
@@ -22,9 +18,19 @@ public class GameServer : SingletonMonobehavior<GameServer>
     public Action<string> OnPlayerAdded;
     public Action<string> OnPlayerRemoved;
 
-    public int maxConnections = 100;
+    public Action<string, PlayerIdentityVerificationDelegate> PlayerIdentityApprovalCallback;
+
+    public string SpawnPointTag = "SpawnPoint";
+    public GameObject playerPrefab;
+
+    public GameObject serverLogPrefab;
+    private ServerLog loggerInstance;
     [Scene]
     public string lobbyScene;
+
+    [Scene]
+    public string gameScene;
+
     public Dictionary<ulong, PlayerNetworkConnection> Connections
     {
         get { return _connections; }
@@ -32,92 +38,183 @@ public class GameServer : SingletonMonobehavior<GameServer>
     }
     private Dictionary<ulong, PlayerNetworkConnection> _connections;
 
-
     void Start()
     {
         netManager = GetComponentInParent<NetworkManager>();
     }
 
-    internal void StartServer()
+
+    public void StopServer()
     {
-        netManager.StartServer();
+        netManager.StopServer();
+    }
+
+
+    public void StopHost()
+    {
+        netManager.StopHost();
+    }
+
+
+    public void StartServer()
+    {
+
         netManager.OnClientConnectedCallback += ClientConnected;
         netManager.OnClientDisconnectCallback += ClientDisconnect;
         netManager.NetworkConfig.ConnectionApproval = true;
         netManager.ConnectionApprovalCallback += ApproveConnection;
         _connections = new Dictionary<ulong, PlayerNetworkConnection>();
-        // not sure what this will do.
-        NetworkSceneManager.SwitchScene(lobbyScene);
+        netManager.StartServer();
+        SpawnServerLogger();
+    }
+
+    private void OnClientLoaded(ulong clientId)
+    {
+        ////spawn the player prefab and give ownership to the client.
+        //var go = Instantiate(playerPrefab, GetSpawnPoint(), Quaternion.identity);
+        //var netObj = go.GetComponent<NetworkObject>();
+
+        //// we'll dispose of the player objects when we change scenes.
+        //netObj.SpawnAsPlayerObject(clientId);
+
+        // Lets try instead to grab each clients player object and move it.
+
+        NetworkManager.Singleton.ConnectedClients[clientId].PlayerObject.transform.position = GetSpawnPoint();
 
     }
 
+    void SpawnServerLogger()
+    {
+        if (netManager.IsServer)
+        {
+            var go = Instantiate(serverLogPrefab);
+            loggerInstance = go.GetComponent<ServerLog>();
+            go.GetComponent<NetworkObject>().Spawn(null, false);
+        }
+    }
+
+    public void StartHost()
+    {
+
+        netManager.OnClientConnectedCallback += ClientConnected;
+        netManager.OnClientDisconnectCallback += ClientDisconnect;
+        netManager.NetworkConfig.ConnectionApproval = true;
+        netManager.ConnectionApprovalCallback += ApproveConnection;
+        _connections = new Dictionary<ulong, PlayerNetworkConnection>();
+        netManager.StartHost();
+        SpawnServerLogger();
+
+        if (PlayerIdentityApprovalCallback != null)
+        {
+            string hostPlayerID = Encoding.ASCII.GetString(netManager.NetworkConfig.ConnectionData);
+            PlayerIdentityApprovalCallback(hostPlayerID, (approved, username) =>
+            {
+                PlayerNetworkConnection connection = new PlayerNetworkConnection
+                {
+                    IsAuthenticated = true,
+                    ClientId = netManager.LocalClientId,
+                    PlayerId = hostPlayerID,
+                    UserName = username
+                };
+
+                Debug.Log("End connection approval check");
+                Debug.Log("Result: ACCEPTED");
+                Debug.Log($"Welcome {username}");
+
+                ServerLog.Log($"{username} has joined.");
+                Connections.Add(netManager.LocalClientId, connection);
+            });
+        }
+        
+        var progress = NetworkSceneManager.SwitchScene(gameScene);
+        progress.OnClientLoadedScene += OnClientLoaded;
+
+    }
+
+
+    /// <summary>
+    /// Receives the player identity via connection data and calls back for authentication from the 3rd party integration.
+    /// </summary>
+    /// <param name="data"></param>
+    /// <param name="clientId"></param>
+    /// <param name="callback"></param>
     private void ApproveConnection(byte[] data, ulong clientId, NetworkManager.ConnectionApprovedDelegate callback)
     {
         Debug.Log("Start connection approval check");
-        string PlayfabID = Encoding.ASCII.GetString(data);
-        Debug.Log(PlayfabID);
+        string playerID = Encoding.ASCII.GetString(data);
 
-        PlayFabServerAPI.GetUserAccountInfo(new GetUserAccountInfoRequest
+        Debug.Log(playerID);
+
+        if (PlayerIdentityApprovalCallback != null)
         {
-            PlayFabId = PlayfabID,
-        },
-        success =>
+            PlayerIdentityApprovalCallback(playerID, (approved, username) =>
+            {
+                if (approved)
+                {
+                    PlayerNetworkConnection connection = new PlayerNetworkConnection
+                    {
+                        IsAuthenticated = true,
+                        ClientId = clientId,
+                        PlayerId = playerID,
+                        UserName = username
+                    };
+
+                    Debug.Log("End connection approval check");
+                    Debug.Log("Result: ACCEPTED");
+                    Debug.Log($"Welcome {username}");
+
+                    ServerLog.Log($"{username} has joined.");
+                    Connections.Add(clientId, connection);
+                    callback(true, null, true, GetSpawnPoint(), Quaternion.identity);
+
+                }
+                else
+                {
+                    callback(false, null, false, Vector3.zero, Quaternion.identity);
+                    Debug.Log("End connection approval");
+                    Debug.Log("Result: DENIED");
+                }
+            });
+        } else
         {
-            bool approve = true;
-            bool createPlayerObject = true;
+            // if no approval checks are registered, we will allow the user and use the data passed as username.
             PlayerNetworkConnection connection = new PlayerNetworkConnection
             {
-                IsAuthenticated = true,
+                IsAuthenticated = false,
                 ClientId = clientId,
-                PlayFabId = PlayfabID,
-                LobbyId = PlayFabMultiplayerAgentAPI.SessionConfig.SessionId,
-                UserName = success.UserInfo.Username
+                PlayerId = playerID,
+                UserName = playerID
             };
-
-            if (_connections.ContainsKey(clientId))
-            {
-                _connections[clientId] = connection;
-            }
-            else
-            {
-                _connections.Add(clientId, connection);
-            }
 
             Debug.Log("End connection approval check");
             Debug.Log("Result: ACCEPTED");
-            Debug.Log($"Welcome {success.UserInfo.Username}");
+            Debug.Log($"Welcome {playerID}");
+
+            ServerLog.Log($"{playerID} has joined.");
+
+            callback(true, null, true, GetSpawnPoint(), Quaternion.identity);
+        }
 
 
 
-            //If approve is true, the connection gets added. If it's false. The client gets disconnected
-            callback(createPlayerObject, null, approve, GetSpawnPoint(), Quaternion.identity);
-
-            ServerLog.Log($"{success.UserInfo.Username} has joined.");
-        },
-        fail =>
-        {
-            bool approve = false;
-            bool createPlayerObject = false;
-            callback(createPlayerObject, null, approve, Vector3.zero, Quaternion.identity);
-            Debug.Log("End connection approval");
-            Debug.Log("Result: DENIED");
-        });;
     }
-
-    private Vector3 GetSpawnPoint()
+    
+    // Gets random position of tagged spawn points, or Vector3.zero if no spawns are defined.
+    public Vector3 GetSpawnPoint()
     {
-        GameObject[] spawnPoints = GameObject.FindGameObjectsWithTag("SpawnPoint");
+        GameObject[] spawnPoints = GameObject.FindGameObjectsWithTag(SpawnPointTag);
         if (spawnPoints.Length > 0)
         {
             GameObject spawnPointObject = spawnPoints[UnityEngine.Random.Range(0, spawnPoints.Length)];
             return spawnPointObject.transform.position;
-        } else
+        }
+        else
         {
             return Vector3.zero;
         }
     }
 
-        private void ClientDisconnect(ulong ClientId)
+    private void ClientDisconnect(ulong ClientId)
     {
         // remove player data from connections dictionary
         if (_connections.ContainsKey(ClientId))
@@ -139,9 +236,10 @@ public class GameServer : SingletonMonobehavior<GameServer>
 public class PlayerNetworkConnection
 {
     public bool IsAuthenticated;
-    public string PlayFabId;
+    public string PlayerId;
     public string LobbyId;
     public string UserName;
     public ulong ClientId;
 }
 
+public delegate void PlayerIdentityVerificationDelegate(bool verified, string username);
