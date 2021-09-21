@@ -41,6 +41,8 @@ public class GameServer : SingletonMonobehavior<GameServer>
     void Start()
     {
         netManager = GetComponentInParent<NetworkManager>();
+
+
     }
 
 
@@ -66,6 +68,8 @@ public class GameServer : SingletonMonobehavior<GameServer>
         _connections = new Dictionary<ulong, PlayerNetworkConnection>();
         netManager.StartServer();
         SpawnServerLogger();
+        var progress = NetworkSceneManager.SwitchScene(gameScene);
+        progress.OnClientLoadedScene += OnClientLoaded;
     }
 
     private void OnClientLoaded(ulong clientId)
@@ -128,8 +132,8 @@ public class GameServer : SingletonMonobehavior<GameServer>
         
         var progress = NetworkSceneManager.SwitchScene(gameScene);
         progress.OnClientLoadedScene += OnClientLoaded;
-
     }
+
 
 
     /// <summary>

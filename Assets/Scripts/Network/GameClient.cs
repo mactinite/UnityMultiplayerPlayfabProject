@@ -31,11 +31,11 @@ public class GameClient : MonoBehaviour
 
     public void Start()
     {
-
-
         bool isServer = false;
         var args = CommandLineUtility.GetArgs();
         Debug.Log($"Reading Args");
+        _authService = PlayFabAuthService.Instance;
+
         if (args.TryGetValue("-mode", out string mlapiValue))
         {
             if (mlapiValue == "server")
@@ -47,7 +47,6 @@ public class GameClient : MonoBehaviour
 
         if (!isServer)
         {
-            _authService = PlayFabAuthService.Instance;
             _authService.InfoRequestParams = new GetPlayerCombinedInfoRequestParams();
             _authService.InfoRequestParams.GetUserAccountInfo = true;
             ActivateClient();
@@ -57,8 +56,14 @@ public class GameClient : MonoBehaviour
         {
             // when running as a dedicated server we authenticate silently.
             _authService.Authenticate(Authtypes.Silent);
-            
+            PlayFabAuthService.OnLoginSuccess += OnServerLogin;
         }
+    }
+
+    private void OnServerLogin(LoginResult success)
+    {
+        Debug.Log("Server authenticated with playfab");
+        GameServer.Instance.StartServer();
     }
 
     public void ActivateClient()
