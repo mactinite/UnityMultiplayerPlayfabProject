@@ -148,10 +148,12 @@ namespace ECM.Examples
 
             crouch = Input.GetKey(KeyCode.C);
 
+            animator.SetFloat("Horizontal", moveDirection.x, 0.1f, Time.deltaTime);
+            animator.SetFloat("Vertical", moveDirection.z, 0.1f, Time.deltaTime);
 
             // Transform moveDirection vector to be relative to camera view direction
 
-            moveDirection = moveDirection.relativeTo(playerCamera);
+            moveDirection = moveDirection.relativeTo(playerCamera ? playerCamera : Camera.main.transform);
         }
 
         #endregion
