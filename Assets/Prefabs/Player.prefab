@@ -2071,6 +2071,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 30537bf9b8e15eb4e9d1eaccb70fc614, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  input: {fileID: 0}
   projectilePrefab: {fileID: 4778132732892917550, guid: 2c31aeefbb008b8459f1cf2a9763bafe,
     type: 3}
   aimDistance: 15
@@ -2160,6 +2161,7 @@ MonoBehaviour:
   playerCamera: {fileID: 0}
   _walkSpeed: 10
   _runSpeed: 7
+  input: {fileID: 0}
 --- !u!1 &5362027487745686146
 GameObject:
   m_ObjectHideFlags: 0

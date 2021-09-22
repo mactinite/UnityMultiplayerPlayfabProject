@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Network Player
   - SpawnPoint
+  - PlayerCamera
   layers:
   - Default
   - TransparentFX

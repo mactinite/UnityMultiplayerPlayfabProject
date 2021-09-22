@@ -5,16 +5,21 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using MLAPI.Messaging;
+using UnityEngine.InputSystem;
+using System;
 
 public class FireProjectile : NetworkBehaviour
 {
+
+    public PlayerInput input;
+
     bool isAiming = false;
     public GameObject projectilePrefab;
     public float aimDistance = 200f;
     public float aimSensMultiplier = 0.75f;
     public BaseCharacterController controller;
     public GameObject characterModel;
-    public Camera camera;
+    public Camera cam;
     public LayerMask hitMask;
     private Vector3 aimPosition;
     public Transform shootOrigin;
@@ -38,44 +43,56 @@ public class FireProjectile : NetworkBehaviour
 
     private void Start()
     {
-        camera = Camera.main;
-        cameraFollow = CameraFollow.Instance;
-        brain = camera.GetComponent<CinemachineBrain>();
+        cam = Camera.main;
+        cameraFollow = Camera.main.GetComponent<CameraFollow>();
+        brain = cam.GetComponent<CinemachineBrain>();
         weaponIk.enabled = false;
+        input = cameraFollow.GetComponent<PlayerInput>();
+        input.actions["Aim"].performed += AimStarted;
+        input.actions["Aim"].canceled += AimCanceled;
+        input.actions["Fire"].performed += FireWeapon;
+        input.actions["Fire"].canceled += FireWeapon;
+    }
 
+    private void FireWeapon(InputAction.CallbackContext obj)
+    {
+        if (isAiming)
+        {
+            FireServerRpc(aimPosition, shootOrigin.transform.position, OwnerClientId);
+        }
+    }
+
+    private void AimCanceled(InputAction.CallbackContext obj)
+    {
+        CameraFollow.Instance.aimCam.gameObject.SetActive(false);
+        CameraFollow.Instance.blockingReticle.gameObject.SetActive(false);
+        CameraFollow.Instance.reticle.gameObject.SetActive(false);
+        isAiming = false;
+    }
+
+    private void AimStarted(InputAction.CallbackContext obj)
+    {
+        CameraFollow.Instance.aimCam.gameObject.SetActive(true);
+        CameraFollow.Instance.reticle.gameObject.SetActive(true);
+
+        isAiming = true;
     }
 
     private void Update()
     {
         if (IsOwner)
         {
-            if (Input.GetMouseButtonDown(1))
-            {
-                CameraFollow.Instance.aimCam.gameObject.SetActive(true);
-                CameraFollow.Instance.reticle.gameObject.SetActive(true);
-
-                isAiming = true;
-            }
-            if (Input.GetMouseButton(1))
-            {
-                Aim();
-            }
-            if (Input.GetMouseButtonUp(1))
-            {
-                CameraFollow.Instance.aimCam.gameObject.SetActive(false);
-                CameraFollow.Instance.blockingReticle.gameObject.SetActive(false);
-                CameraFollow.Instance.reticle.gameObject.SetActive(false);
-                isAiming = false;
-            }
-
+   
 
             if (isAiming)
             {
                 aimValue += Time.deltaTime * rotationSmoothSpeed;
                 weaponIk.enabled = true;
-            } else
+                Aim();
+            }
+            else
             {
-                aimValue -= Time.deltaTime* rotationSmoothSpeed;
+                aimValue -= Time.deltaTime * rotationSmoothSpeed;
                 weaponIk.enabled = false;
             }
 
@@ -91,22 +108,22 @@ public class FireProjectile : NetworkBehaviour
 
     public override void NetworkStart()
     {
-        camera = Camera.main;
+        cam = Camera.main;
     }
 
     public void Aim()
     {
-        Vector3 screenPoint = camera.ViewportToScreenPoint(new Vector3(0.5f, 0.5f, 0f));
-        Vector3 rayOrigin = camera.ScreenToWorldPoint(screenPoint);
+        Vector3 screenPoint = cam.ViewportToScreenPoint(new Vector3(0.5f, 0.5f, 0f));
+        Vector3 rayOrigin = cam.ScreenToWorldPoint(screenPoint);
         RaycastHit hit;
-        if (Physics.Raycast(rayOrigin, camera.transform.forward, out hit, aimDistance, hitMask))
+        if (Physics.Raycast(rayOrigin, cam.transform.forward, out hit, aimDistance, hitMask))
         {
             aimPosition = hit.point;
         }
         else
         {
-            aimPosition = camera.transform.position + camera.transform.forward * aimDistance;
-            
+            aimPosition = cam.transform.position + cam.transform.forward * aimDistance;
+
         }
 
         _smoothedAimPosition = Vector3.SmoothDamp(aimTransform.position, aimPosition, ref aimPosVel, aimPositionSmoothTime);
@@ -129,12 +146,12 @@ public class FireProjectile : NetworkBehaviour
             cameraFollow.blockingReticle.gameObject.SetActive(false);
         }
 
-        if (Input.GetMouseButtonDown(0))
-        {
-            FireServerRpc(aimPosition, shootOrigin.transform.position, OwnerClientId);
-        }
 
     }
+
+
+    
+
     [ServerRpc]
     public void FireServerRpc(Vector3 aimPos, Vector3 firePos, ulong clientId)
     {

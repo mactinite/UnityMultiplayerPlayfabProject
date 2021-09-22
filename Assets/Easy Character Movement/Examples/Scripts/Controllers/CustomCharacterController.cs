@@ -1,6 +1,7 @@
 ﻿using ECM.Common;
 using ECM.Controllers;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace ECM.Examples
 {
@@ -30,6 +31,11 @@ namespace ECM.Examples
         [SerializeField]
         private float _runSpeed = 5.0f;
 
+        #endregion
+
+        #region INPUT SYSTEM
+
+        public PlayerInput input;
         #endregion
 
         #region PROPERTIES
@@ -134,19 +140,20 @@ namespace ECM.Examples
         protected override void HandleInput()
         {
             // Handle your custom input here...
+            Vector2 movement = input.actions["Move"].ReadValue<Vector2>();
 
             moveDirection = new Vector3
             {
-                x = Input.GetAxisRaw("Horizontal"),
+                x = movement.x,
                 y = 0.0f,
-                z = Input.GetAxisRaw("Vertical")
+                z = movement.y
             };
 
-            walk = Input.GetButton("Fire3");
+            walk = input.actions["Sprint"].ReadValue<float>() > 0;
 
-            jump = Input.GetButton("Jump");
+            jump = input.actions["Jump"].ReadValue<float>() > 0;
 
-            crouch = Input.GetKey(KeyCode.C);
+            crouch = input.actions["Crouch"].ReadValue<float>() > 0;
 
             animator.SetFloat("Horizontal", moveDirection.x, 0.1f, Time.deltaTime);
             animator.SetFloat("Vertical", moveDirection.z, 0.1f, Time.deltaTime);
@@ -164,7 +171,13 @@ namespace ECM.Examples
         /// Overrides 'BaseCharacterController' OnValidate method,
         /// to perform this class editor exposed fields validation.
         /// </summary>
-
+        private void Start()
+        {
+            if(input == null)
+            {
+                input = Camera.main.GetComponent<PlayerInput>();
+            }
+        }
         public override void OnValidate()
         {
             // Validate 'BaseCharacterController' editor exposed fields

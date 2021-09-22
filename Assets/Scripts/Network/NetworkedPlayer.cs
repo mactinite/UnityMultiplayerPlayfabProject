@@ -11,6 +11,9 @@ using PlayFab.ClientModels;
 using System.Collections;
 using mactinite.ToolboxCommons;
 using Random = UnityEngine.Random;
+using UnityEngine.InputSystem;
+using ECM.Examples;
+using MLAPI.Logging;
 
 namespace Game
 {
@@ -28,7 +31,7 @@ namespace Game
         public GameObject playerDisplay;
         [Layer]
         public int remotePlayerLayer;
-
+        PlayerInput input;
         public float CurrentHealth { get => _currentHealth; }
 
         private void Start()
@@ -51,6 +54,8 @@ namespace Game
 
 
             playerNameNetworkVariable.OnValueChanged += PlayerNameChanged;
+
+
         }
 
         private void OnHealthChanged(float previousValue, float newValue)
@@ -92,6 +97,7 @@ namespace Game
 
             if (IsOwner)
             {
+                NetworkLog.LogInfoServer("Player Object NetworkStarted");
                 nameplate.gameObject.SetActive(false);
                 GetAccountInfoRequest request = new GetAccountInfoRequest();
                 PlayFabClientAPI.GetAccountInfo(request, Success, Fail);
@@ -134,7 +140,8 @@ namespace Game
                     };
                     Debug.Log($"{GameServer.Instance.Connections[OwnerClientId].UserName} died to the elements");
                     ServerLog.Log($"{ GameServer.Instance.Connections[OwnerClientId].UserName} {deathPhrases[Random.Range(0, deathPhrases.Length)]}");
-                } else
+                }
+                else
                 {
                     Debug.Log($"{GameServer.Instance.Connections[OwnerClientId].UserName} was killed by {GameServer.Instance.Connections[sourceClientId].UserName}");
                     ServerLog.Log($"{GameServer.Instance.Connections[sourceClientId].UserName} killed {GameServer.Instance.Connections[OwnerClientId].UserName}");
@@ -146,7 +153,7 @@ namespace Game
                 // update network variable
                 healthNetworkVariable.Value = _currentHealth;
                 healthNetworkVariable.SetDirty(true);
-                
+
             }
         }
 

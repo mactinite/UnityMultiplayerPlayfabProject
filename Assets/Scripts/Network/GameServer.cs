@@ -13,6 +13,8 @@ using MLAPI.SceneManagement;
 /// </summary>
 public class GameServer : SingletonMonobehavior<GameServer>
 {
+    [SerializeField]
+    private bool inGame = false;
     private NetworkManager netManager;
 
     public Action<string> OnPlayerAdded;
@@ -37,6 +39,8 @@ public class GameServer : SingletonMonobehavior<GameServer>
         private set { _connections = value; }
     }
     private Dictionary<ulong, PlayerNetworkConnection> _connections;
+    [SerializeField]
+    private bool spawnPrefabOnConnect;
 
     void Start()
     {
@@ -74,17 +78,13 @@ public class GameServer : SingletonMonobehavior<GameServer>
 
     private void OnClientLoaded(ulong clientId)
     {
-        ////spawn the player prefab and give ownership to the client.
-        //var go = Instantiate(playerPrefab, GetSpawnPoint(), Quaternion.identity);
-        //var netObj = go.GetComponent<NetworkObject>();
+        inGame = true;
+        //spawn the player prefab and give ownership to the client.
+        var go = Instantiate(playerPrefab, GetSpawnPoint(), Quaternion.identity);
+        var netObj = go.GetComponent<NetworkObject>();
 
-        //// we'll dispose of the player objects when we change scenes.
-        //netObj.SpawnAsPlayerObject(clientId);
-
-        // Lets try instead to grab each clients player object and move it.
-
-        NetworkManager.Singleton.ConnectedClients[clientId].PlayerObject.transform.position = GetSpawnPoint();
-
+        // we'll dispose of the player objects when we change scenes.
+        netObj.SpawnAsPlayerObject(clientId);
     }
 
     void SpawnServerLogger()
@@ -169,7 +169,7 @@ public class GameServer : SingletonMonobehavior<GameServer>
 
                     ServerLog.Log($"{username} has joined.");
                     Connections.Add(clientId, connection);
-                    callback(true, null, true, GetSpawnPoint(), Quaternion.identity);
+                    callback(spawnPrefabOnConnect, null, true, GetSpawnPoint(), Quaternion.identity);
 
                 }
                 else
@@ -194,9 +194,7 @@ public class GameServer : SingletonMonobehavior<GameServer>
             Debug.Log("Result: ACCEPTED");
             Debug.Log($"Welcome {playerID}");
 
-            ServerLog.Log($"{playerID} has joined.");
-
-            callback(true, null, true, GetSpawnPoint(), Quaternion.identity);
+            callback(spawnPrefabOnConnect, null, true, GetSpawnPoint(), Quaternion.identity);
         }
 
 
@@ -231,6 +229,19 @@ public class GameServer : SingletonMonobehavior<GameServer>
     private void ClientConnected(ulong ClientId)
     {
         Debug.Log($"Client Connected : {ClientId}");
+
+        ServerLog.Log($"{Connections[ClientId].UserName} has joined.");
+
+        // spawn prefabs for newly connecting clients.
+        if (inGame)
+        {
+            //spawn the player prefab and give ownership to the client.
+            var go = Instantiate(playerPrefab, GetSpawnPoint(), Quaternion.identity);
+            var netObj = go.GetComponent<NetworkObject>();
+
+            // we'll dispose of the player objects when we change scenes.
+            netObj.SpawnAsPlayerObject(ClientId);
+        }
     }
 
 }

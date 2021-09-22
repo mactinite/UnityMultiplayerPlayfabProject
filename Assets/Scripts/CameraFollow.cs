@@ -5,6 +5,8 @@ using Cinemachine;
 using ECM.Components;
 using ECM.Controllers;
 using mactinite.ToolboxCommons;
+using UnityEngine.InputSystem;
+
 public class CameraFollow : SingletonMonobehavior<CameraFollow>
 {
     public Transform followTarget;
@@ -30,10 +32,11 @@ public class CameraFollow : SingletonMonobehavior<CameraFollow>
     private float rotationPower = 3f;
     private bool lockCursor = false;
 
+    public PlayerInput input;
+    private Vector2 mousePos = Vector2.zero;
 
-    private void Start()
+    private void Awake()
     {
-        DontDestroyOnLoad(gameObject);
         if (cameraTrackingTransform == null)
         {
             cameraTrackingTransform = new GameObject("Camera Target").transform;
@@ -46,6 +49,19 @@ public class CameraFollow : SingletonMonobehavior<CameraFollow>
         aimCam.gameObject.SetActive(false);
         blockingReticle.gameObject.SetActive(false);
         reticle.gameObject.SetActive(false);
+        SetCursorState(true);
+        input.actions["Release Mouse"].performed += ReleaseCursor;
+        input.actions["Release Mouse"].canceled += LockCursor;
+    }
+
+    private void ReleaseCursor(InputAction.CallbackContext obj)
+    {
+        SetCursorState(false);
+    }
+
+    private void LockCursor(InputAction.CallbackContext obj)
+    {
+        SetCursorState(true);
     }
 
     private void Update()
@@ -60,7 +76,7 @@ public class CameraFollow : SingletonMonobehavior<CameraFollow>
             aimCam.LookAt = cameraTrackingTransform;
         }
 
-        if (followTarget != null)
+        if (followTarget != null && lockCursor)
         {
             if (!groundDetection)
             {
@@ -80,28 +96,19 @@ public class CameraFollow : SingletonMonobehavior<CameraFollow>
 
             cameraTrackingTransform.position = Vector3.SmoothDamp(cameraTrackingTransform.position, desiredPosition, ref _vel, smoothTime);
             Rotation();
-            if (lockCursor == false)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-                lockCursor = true;
-            }
-        }
-        else
-        {
-            if (lockCursor == true)
-            {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
-                lockCursor = false;
-            }
         }
 
-        if (lockCursor == true && Input.GetKeyDown(KeyCode.Escape))
-        {
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
-        }
+    }
+
+    private void OnApplicationFocus(bool hasFocus)
+    {
+        SetCursorState(true);
+    }
+
+    private void SetCursorState(bool newState)
+    {
+        lockCursor = newState;
+        Cursor.lockState = newState ? CursorLockMode.Locked : CursorLockMode.None;
     }
 
 
@@ -121,8 +128,9 @@ public class CameraFollow : SingletonMonobehavior<CameraFollow>
 
     public void Rotation()
     {
-        _look.x = Input.GetAxis("Mouse X") * lateralSensitivity;
-        _look.y = -(Input.GetAxis("Mouse Y") * verticalSensitivity);
+        mousePos = input.actions["Look"].ReadValue<Vector2>() * Time.deltaTime;
+        _look.x = mousePos.x * lateralSensitivity;
+        _look.y = -(mousePos.y * verticalSensitivity);
 
         cameraTrackingTransform.transform.rotation *= Quaternion.AngleAxis(_look.x * rotationPower, Vector3.up);
 
@@ -146,6 +154,15 @@ public class CameraFollow : SingletonMonobehavior<CameraFollow>
 
 
         cameraTrackingTransform.localEulerAngles = angles;
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (Application.IsPlaying(this))
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(cameraTrackingTransform.position, 0.25f);
+        }
     }
 
 }
