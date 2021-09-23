@@ -5,6 +5,7 @@ using UnityEngine;
 using mactinite.ToolboxCommons;
 using System.Text;
 using MLAPI.SceneManagement;
+using MLAPI.Logging;
 
 /// <summary>
 /// Game Server is the first custom layer on top of network manager. 
@@ -17,8 +18,8 @@ public class GameServer : SingletonMonobehavior<GameServer>
     private bool inGame = false;
     private NetworkManager netManager;
 
-    public Action<string> OnPlayerAdded;
-    public Action<string> OnPlayerRemoved;
+    public Action<ulong> OnPlayerAdded;
+    public Action<ulong> OnPlayerRemoved;
 
     public Action<string, PlayerIdentityVerificationDelegate> PlayerIdentityApprovalCallback;
 
@@ -27,11 +28,14 @@ public class GameServer : SingletonMonobehavior<GameServer>
 
     public GameObject serverLogPrefab;
     private ServerLog loggerInstance;
-    [Scene]
-    public string lobbyScene;
 
     [Scene]
     public string gameScene;
+
+    [Scene]
+    public string lobbyScene;
+
+    public int maxPlayers = 16;
 
     public Dictionary<ulong, PlayerNetworkConnection> Connections
     {
@@ -45,8 +49,6 @@ public class GameServer : SingletonMonobehavior<GameServer>
     void Start()
     {
         netManager = GetComponentInParent<NetworkManager>();
-
-
     }
 
 
@@ -72,29 +74,6 @@ public class GameServer : SingletonMonobehavior<GameServer>
         _connections = new Dictionary<ulong, PlayerNetworkConnection>();
         netManager.StartServer();
         SpawnServerLogger();
-        var progress = NetworkSceneManager.SwitchScene(gameScene);
-        progress.OnClientLoadedScene += OnClientLoaded;
-    }
-
-    private void OnClientLoaded(ulong clientId)
-    {
-        inGame = true;
-        //spawn the player prefab and give ownership to the client.
-        var go = Instantiate(playerPrefab, GetSpawnPoint(), Quaternion.identity);
-        var netObj = go.GetComponent<NetworkObject>();
-
-        // we'll dispose of the player objects when we change scenes.
-        netObj.SpawnAsPlayerObject(clientId);
-    }
-
-    void SpawnServerLogger()
-    {
-        if (netManager.IsServer)
-        {
-            var go = Instantiate(serverLogPrefab);
-            loggerInstance = go.GetComponent<ServerLog>();
-            go.GetComponent<NetworkObject>().Spawn(null, false);
-        }
     }
 
     public void StartHost()
@@ -127,11 +106,46 @@ public class GameServer : SingletonMonobehavior<GameServer>
 
                 ServerLog.Log($"{username} has joined.");
                 Connections.Add(netManager.LocalClientId, connection);
+
+                var progress = NetworkSceneManager.SwitchScene(lobbyScene);
             });
         }
-        
+
+    }
+
+    public void StartGame()
+    {
         var progress = NetworkSceneManager.SwitchScene(gameScene);
         progress.OnClientLoadedScene += OnClientLoaded;
+        progress.OnComplete += OnAllClientsLoaded;
+        inGame = true;
+    }
+
+    private void OnAllClientsLoaded(bool timedOut)
+    {
+        // we can test this later, but lets log to see where this is executed
+        string timedOutString = timedOut ? "yes" : "no";
+        NetworkLog.LogInfoServer($"All clients loaded! timed out? {timedOutString}.");
+    }
+
+    private void OnClientLoaded(ulong clientId)
+    {
+        //spawn the player prefab and give ownership to the client.
+        var go = Instantiate(playerPrefab, GetSpawnPoint(), Quaternion.identity);
+        var netObj = go.GetComponent<NetworkObject>();
+
+        // we'll dispose of the player objects when we change scenes.
+        netObj.SpawnAsPlayerObject(clientId);
+    }
+
+    void SpawnServerLogger()
+    {
+        if (netManager.IsServer)
+        {
+            var go = Instantiate(serverLogPrefab);
+            loggerInstance = go.GetComponent<ServerLog>();
+            go.GetComponent<NetworkObject>().Spawn(null, false);
+        }
     }
 
 
@@ -224,6 +238,8 @@ public class GameServer : SingletonMonobehavior<GameServer>
             ServerLog.Log($"{_connections[ClientId].UserName} has left.");
             _connections.Remove(ClientId);
         }
+
+        OnPlayerRemoved?.Invoke(ClientId);
     }
 
     private void ClientConnected(ulong ClientId)
@@ -242,8 +258,15 @@ public class GameServer : SingletonMonobehavior<GameServer>
             // we'll dispose of the player objects when we change scenes.
             netObj.SpawnAsPlayerObject(ClientId);
         }
+
+        OnPlayerAdded?.Invoke(ClientId);
     }
 
+    //// method for clients to ask the server for the players list.
+    //public static Dictionary<ulong, PlayerNetworkConnection> GetPlayersFromClient()
+    //{
+
+    //}
 }
 
 

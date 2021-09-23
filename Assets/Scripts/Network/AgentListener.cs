@@ -93,15 +93,17 @@ public class AgentListener : MonoBehaviour
         Debug.Log("AgentListener: Server Started From Agent Activation");
     }
 
-    private void OnPlayerRemoved(string playfabId)
+    private void OnPlayerRemoved(ulong clientId)
     {
+        string playfabId = GameServer.Instance.Connections[clientId].PlayerId;
         ConnectedPlayer player = _connectedPlayers.Find(x => x.PlayerId.Equals(playfabId, StringComparison.OrdinalIgnoreCase));
         _connectedPlayers.Remove(player);
         PlayFabMultiplayerAgentAPI.UpdateConnectedPlayers(_connectedPlayers);
     }
 
-    private void OnPlayerAdded(string playfabId)
+    private void OnPlayerAdded(ulong clientId)
     {
+        string playfabId = GameServer.Instance.Connections[clientId].PlayerId;
         _connectedPlayers.Add(new ConnectedPlayer(playfabId));
         PlayFabMultiplayerAgentAPI.UpdateConnectedPlayers(_connectedPlayers);
     }
