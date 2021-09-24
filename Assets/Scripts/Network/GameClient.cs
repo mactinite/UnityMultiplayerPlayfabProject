@@ -10,6 +10,7 @@ using MLAPI;
 using System.Text;
 using UnityEngine.UI;
 using MLAPI.Transports.UNET;
+using mactinite.ToolboxCommons;
 
 /// <summary>
 /// Right now this handles authenticating with playfab and launching the network client and manipulating the UI. 
@@ -29,8 +30,13 @@ public class GameClient : MonoBehaviour
     public Toggle rememberMeToggle;
     public CameraFollow cameraFollow;
 
+    [SerializeField, Scene]
+    public string menuScene;
+
     public void Start()
     {
+        UnityEngine.SceneManagement.SceneManager.LoadScene(menuScene);
+
         bool isServer = false;
         var args = CommandLineUtility.GetArgs();
         Debug.Log($"Reading Args");
@@ -74,6 +80,31 @@ public class GameClient : MonoBehaviour
 
         _nm = NetworkManager.Singleton;
         _nm.OnClientConnectedCallback += OnConnected;
+        _nm.OnClientDisconnectCallback += OnClientDisconnect;
+    }
+
+    private void OnClientDisconnect(ulong clientId)
+    {
+        
+        var netManager = NetworkManager.Singleton;
+        if (netManager.LocalClientId == clientId)
+        {
+            if (netManager.IsHost)
+            {
+                netManager.StopHost();
+
+            }
+            else if (netManager.IsClient)
+            {
+                netManager.StopClient();
+            }
+            else if (netManager.IsServer)
+            {
+                netManager.StopServer();
+            }
+            UnityEngine.SceneManagement.SceneManager.LoadScene(menuScene);
+        }
+
     }
 
     public static void ConnectToServer(string ipv4Address, int port)

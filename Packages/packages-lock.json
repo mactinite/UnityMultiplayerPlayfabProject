@@ -1,5 +1,13 @@
 {
   "dependencies": {
+    "com.mactinite.extensibledamagesystem": {
+      "version": "file:DamageReceiver",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.textmeshpro": "3.0.0"
+      }
+    },
     "com.mactinite.toolboxcommons": {
       "version": "https://github.com/mactinite/UnityToolboxCommons.git#main",
       "depth": 0,

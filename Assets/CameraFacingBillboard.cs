@@ -9,7 +9,7 @@ public class CameraFacingBillboard : MonoBehaviour
 	public bool autoInit = false;
 	GameObject myContainer;
 
-	void Awake()
+	void Start()
 	{
 		if (autoInit == true)
 		{
@@ -21,6 +21,6 @@ public class CameraFacingBillboard : MonoBehaviour
 	//Orient the camera after all movement is completed this frame to avoid jittering
 	void LateUpdate()
 	{
-			transform.LookAt(m_Camera.transform.position, m_Camera.transform.rotation * Vector3.up);
+		transform.LookAt(m_Camera.transform.position, m_Camera.transform.rotation * Vector3.up);
 	}
 }

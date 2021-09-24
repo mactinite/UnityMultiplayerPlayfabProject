@@ -90,5 +90,6 @@ public class TestNetworkMenu : MonoBehaviour
         joinButton.gameObject.SetActive(true);
         statusText.gameObject.SetActive(false);
         errorText.text = "connection timeout, try again";
+        NetworkManager.Singleton.StopClient();
     }
 }

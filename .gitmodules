@@ -1,0 +1,3 @@
+[submodule "Packages/DamageReceiver"]
+	path = Packages/DamageReceiver
+	url = https://github.com/mactinite/DamageReceiver.git

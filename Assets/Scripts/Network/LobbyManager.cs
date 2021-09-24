@@ -9,6 +9,7 @@ using UnityEngine.UI;
 using TMPro;
 using MLAPI.NetworkVariable.Collections;
 using MLAPI.NetworkVariable;
+using mactinite.ToolboxCommons;
 
 /// <summary>
 /// Lobby manager will read the connections from game server and render a list. 
@@ -19,7 +20,7 @@ public partial class LobbyManager : NetworkBehaviour
 
     public Button startButton;
     public Button readyButton;
-
+    public Button leaveButton;
     public GameObject playerList;
     public GameObject playerListItemPrefab;
 
@@ -29,9 +30,12 @@ public partial class LobbyManager : NetworkBehaviour
         ReadPermission = NetworkVariablePermission.Everyone,
         WritePermission = NetworkVariablePermission.ServerOnly,
     });
+    [SerializeField, Scene]
+    private string menuScene;
 
     public override void NetworkStart()
     {
+
         // server needs to change the Ready button to a start button.
         if (IsHost)
         {
@@ -84,6 +88,15 @@ public partial class LobbyManager : NetworkBehaviour
             }
             // we are dedicated server so perhaps some kind of match timer or start criteria.
         }
+
+        leaveButton.onClick.AddListener(LeaveLobby);
+
+    }
+
+    public void OnDestroy()
+    {
+        GameServer.Instance.OnPlayerAdded -= PlayerAdded;
+        GameServer.Instance.OnPlayerRemoved -= PlayerRemoved;
     }
 
     private void onPlayersChange(NetworkListEvent<LobbyPlayer> changeEvent)
@@ -214,5 +227,22 @@ public partial class LobbyManager : NetworkBehaviour
             UpdateUI();
         }
     }
+
+    public void LeaveLobby()
+    {
+        if (IsHost)
+        {
+            //shut down server and go back to main menu.
+            NetworkManager.Singleton.StopHost();
+            UnityEngine.SceneManagement.SceneManager.LoadScene(menuScene);
+        } else
+        {
+            NetworkManager.Singleton.StopClient();
+            UnityEngine.SceneManagement.SceneManager.LoadScene(menuScene);
+
+        }
+    }
+
+
 
 }

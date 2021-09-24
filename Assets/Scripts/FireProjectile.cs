@@ -41,22 +41,11 @@ public class FireProjectile : NetworkBehaviour
     private Vector3 aimPosVel;
     private float aimPositionSmoothTime;
 
-    private void Start()
-    {
-        cam = Camera.main;
-        cameraFollow = Camera.main.GetComponent<CameraFollow>();
-        brain = cam.GetComponent<CinemachineBrain>();
-        weaponIk.enabled = false;
-        input = cameraFollow.GetComponent<PlayerInput>();
-        input.actions["Aim"].performed += AimStarted;
-        input.actions["Aim"].canceled += AimCanceled;
-        input.actions["Fire"].performed += FireWeapon;
-        input.actions["Fire"].canceled += FireWeapon;
-    }
+
 
     private void FireWeapon(InputAction.CallbackContext obj)
     {
-        if (isAiming)
+        if (isAiming && obj.performed)
         {
             FireServerRpc(aimPosition, shootOrigin.transform.position, OwnerClientId);
         }
@@ -82,8 +71,6 @@ public class FireProjectile : NetworkBehaviour
     {
         if (IsOwner)
         {
-   
-
             if (isAiming)
             {
                 aimValue += Time.deltaTime * rotationSmoothSpeed;
@@ -108,7 +95,29 @@ public class FireProjectile : NetworkBehaviour
 
     public override void NetworkStart()
     {
-        cam = Camera.main;
+        if (IsLocalPlayer)
+        {
+            cam = Camera.main;
+            cameraFollow = Camera.main.GetComponent<CameraFollow>();
+            brain = cam.GetComponent<CinemachineBrain>();
+            weaponIk.enabled = false;
+            input = cameraFollow.GetComponent<PlayerInput>();
+            input.actions["Aim"].performed += AimStarted;
+            input.actions["Aim"].canceled += AimCanceled;
+            input.actions["Fire"].performed += FireWeapon;
+            input.actions["Fire"].canceled += FireWeapon;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (IsLocalPlayer)
+        {
+            input.actions["Aim"].performed -= AimStarted;
+            input.actions["Aim"].canceled -= AimCanceled;
+            input.actions["Fire"].performed -= FireWeapon;
+            input.actions["Fire"].canceled -= FireWeapon;
+        }
     }
 
     public void Aim()
@@ -150,7 +159,7 @@ public class FireProjectile : NetworkBehaviour
     }
 
 
-    
+
 
     [ServerRpc]
     public void FireServerRpc(Vector3 aimPos, Vector3 firePos, ulong clientId)

@@ -135,7 +135,7 @@ public class GameServer : SingletonMonobehavior<GameServer>
         var netObj = go.GetComponent<NetworkObject>();
 
         // we'll dispose of the player objects when we change scenes.
-        netObj.SpawnAsPlayerObject(clientId);
+        netObj.SpawnAsPlayerObject(clientId, destroyWithScene: true);
     }
 
     void SpawnServerLogger()
@@ -252,11 +252,7 @@ public class GameServer : SingletonMonobehavior<GameServer>
         if (inGame)
         {
             //spawn the player prefab and give ownership to the client.
-            var go = Instantiate(playerPrefab, GetSpawnPoint(), Quaternion.identity);
-            var netObj = go.GetComponent<NetworkObject>();
-
-            // we'll dispose of the player objects when we change scenes.
-            netObj.SpawnAsPlayerObject(ClientId);
+            OnClientLoaded(ClientId);
         }
 
         OnPlayerAdded?.Invoke(ClientId);

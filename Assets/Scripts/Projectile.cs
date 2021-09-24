@@ -31,9 +31,10 @@ public class Projectile : NetworkBehaviour
     {
         if (IsOwner && collision.gameObject.IsInLayerMask(hitMask))
         {
-            if (collision.gameObject.TryGetComponent<ITakeDamage>(out var damageReceiver))
+
+            if(collision.gameObject.TryGetComponent<Damageable>(out var damageable))
             {
-                damageReceiver.Damage(damage,(int)OwnerClientId);
+                damageable.Damage(new Damage(damage));
             }
 
             DestroyProjectileServerRpc();
