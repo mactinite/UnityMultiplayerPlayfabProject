@@ -1,21 +1,12 @@
-using MLAPI;
-using MLAPI.Messaging;
-using System;
-using System.Collections;
-using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
-using mactinite.EDS;
-using mactinite.EDS.Basic;
 using System.Linq;
-using MLAPI.Connection;
-using MLAPI.NetworkVariable;
-using System.IO;
 
 public class NetworkedDamageReceiver : NetworkBehaviour
 {
     Damageable receiver;
     // Sync health in a var so we can use it to initialize clients who connect later
-    NetworkVariableFloat health = new NetworkVariableFloat();
+    NetworkVariable<float> health = new NetworkVariable<float>(readPerm: NetworkVariableReadPermission.Everyone);
 
     private void Awake()
     {
@@ -24,14 +15,11 @@ public class NetworkedDamageReceiver : NetworkBehaviour
         {
             health.Value = receiver.health;
             Debug.Log($"{gameObject.name}s health intiialized on server at {receiver.health}.");
-
         }
     }
 
     private void Start()
     {
-        health.Settings.ReadPermission = NetworkVariablePermission.Everyone;
-        health.Settings.WritePermission = NetworkVariablePermission.ServerOnly;
     }
 
     private void OnEnable()
@@ -55,7 +43,7 @@ public class NetworkedDamageReceiver : NetworkBehaviour
         receiver.OnDamage -= OnDamagedNetworked;
     }
 
-    public override void NetworkStart()
+    public override void OnNetworkSpawn()
     {
         if (IsClient)
         {

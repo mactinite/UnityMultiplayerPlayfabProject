@@ -1,4 +1,3 @@
-using MLAPI;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -6,6 +5,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Net;
+using Unity.Netcode;
 
 public class TestNetworkMenu : MonoBehaviour
 {
@@ -90,6 +90,6 @@ public class TestNetworkMenu : MonoBehaviour
         joinButton.gameObject.SetActive(true);
         statusText.gameObject.SetActive(false);
         errorText.text = "connection timeout, try again";
-        NetworkManager.Singleton.StopClient();
+        NetworkManager.Singleton.Shutdown();
     }
 }

@@ -1,5 +1,4 @@
-using MLAPI;
-using MLAPI.Messaging;
+using Unity.Netcode;
 using System;
 using System.Collections;
 using System.Linq;
@@ -7,9 +6,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
-using MLAPI.NetworkVariable.Collections;
-using MLAPI.NetworkVariable;
 using mactinite.ToolboxCommons;
+using PlayFab.ServerModels;
 
 /// <summary>
 /// Lobby manager will read the connections from game server and render a list. 
@@ -23,39 +21,23 @@ public partial class LobbyManager : NetworkBehaviour
     public Button leaveButton;
     public GameObject playerList;
     public GameObject playerListItemPrefab;
+    public Dictionary<ulong, bool> readyStatus = new Dictionary<ulong, bool>();
 
-    [SerializeField]
-    private NetworkList<LobbyPlayer> players = new NetworkList<LobbyPlayer>(new NetworkVariableSettings
-    {
-        ReadPermission = NetworkVariablePermission.Everyone,
-        WritePermission = NetworkVariablePermission.ServerOnly,
-    });
+
     [SerializeField, Scene]
     private string menuScene;
-
-    public override void NetworkStart()
+    
+    public override void OnNetworkSpawn()
     {
-
         // server needs to change the Ready button to a start button.
-        if (IsHost)
+        if (IsServer)
         {
             readyButton.gameObject.SetActive(false);
             startButton.gameObject.SetActive(true);
             startButton.onClick.AddListener(StartGame);
             GameServer.Instance.OnPlayerAdded += PlayerAdded;
             GameServer.Instance.OnPlayerRemoved += PlayerRemoved;
-            var netManager = NetworkManager.Singleton;
-            // loop through connections on network manager and add to players list
-            for (int i = 0; i < netManager.ConnectedClientsList.Count; i++)
-            {
-                ulong clientId = netManager.ConnectedClientsList[i].ClientId;
-                players.Add(new LobbyPlayer
-                {
-                    userName = GameServer.Instance.Connections[clientId].UserName,
-                    ClientId = clientId,
-                    isReady = false,
-                });
-            }
+            PlayerAdded(0);
             UpdateUI();
             startButton.interactable = CheckAllPlayersReady();
 
@@ -64,44 +46,13 @@ public partial class LobbyManager : NetworkBehaviour
         {
             startButton.gameObject.SetActive(false);
             readyButton.gameObject.SetActive(true);
-            players.OnListChanged += onPlayersChange;
-            readyButton.onClick.AddListener(ReadyUp);
-        } else
-        {
-            startButton.gameObject.SetActive(false);
-            readyButton.gameObject.SetActive(false);
             GameServer.Instance.OnPlayerAdded += PlayerAdded;
             GameServer.Instance.OnPlayerRemoved += PlayerRemoved;
-            var netManager = NetworkManager.Singleton;
-            // loop through connections on network manager and add to players list
-            for (int i = 0; i < netManager.ConnectedClientsList.Count; i++)
-            {
-                ulong clientId = netManager.ConnectedClientsList[i].ClientId;
-
-                players.Add(new LobbyPlayer
-                {
-                    userName = GameServer.Instance.Connections[clientId].UserName,
-                    ClientId = clientId,
-                    isReady = false,
-                });
-                UpdateUI();
-            }
-            // we are dedicated server so perhaps some kind of match timer or start criteria.
+            readyButton.onClick.AddListener(ReadyUp);
         }
 
         leaveButton.onClick.AddListener(LeaveLobby);
 
-    }
-
-    public void OnDestroy()
-    {
-        GameServer.Instance.OnPlayerAdded -= PlayerAdded;
-        GameServer.Instance.OnPlayerRemoved -= PlayerRemoved;
-    }
-
-    private void onPlayersChange(NetworkListEvent<LobbyPlayer> changeEvent)
-    {
-        UpdateUI();
     }
 
     private void ReadyUp()
@@ -122,32 +73,26 @@ public partial class LobbyManager : NetworkBehaviour
     {
         bool AllReady = true;
 
-        foreach (var player in players)
-        {
-            if (player.isReady == false && player.ClientId != NetworkManager.Singleton.ServerClientId)
-            {
-                AllReady = false;
-            }
-        }
+        // foreach (var player in players)
+        // {
+        //     if (player.isReady == false && player != NetworkManager.Singleton.ServerClientId)
+        //     {
+        //         AllReady = false;
+        //     }
+        // }
 
         return AllReady;
     }
 
     private void PlayerRemoved(ulong clientId)
     {
-        LobbyPlayer player = players.ToList().Find(x => x.ClientId.Equals(clientId));
-        players.Remove(player);
+        readyStatus.Remove(clientId);
         UpdateUI();
     }
 
     private void PlayerAdded(ulong clientId)
     {
-        players.Add(new LobbyPlayer
-        {
-            userName = GameServer.Instance.Connections[clientId].UserName,
-            ClientId = clientId, 
-            isReady = false 
-        });
+        readyStatus.Add(clientId, false);
         UpdateUI();
     }
 
@@ -161,14 +106,14 @@ public partial class LobbyManager : NetworkBehaviour
         }
 
         // now lets create new ones for everyone.
-        foreach(var player in players)
+        foreach(var player in GameServer.Instance.Connections)
         {
             GameObject listItem = Instantiate(playerListItemPrefab, playerList.transform);
             TMP_Text[] text = listItem.GetComponentsInChildren<TMP_Text>();
-            text[0].text = player.userName;
-            text[1].text = player.isReady ? "READY" : "NOT READY";
+            text[0].text = player.Value.PlayerId;
+            text[1].text = readyStatus[player.Key] ? "READY" : "NOT READY";
 
-            if(player.ClientId == NetworkManager.Singleton.ServerClientId)
+            if(player.Value.ClientId == NetworkManager.Singleton.ServerClientId)
             {
                 text[1].text = "HOST";
             }
@@ -178,9 +123,9 @@ public partial class LobbyManager : NetworkBehaviour
     [ServerRpc(RequireOwnership = false)]
     public void ClientReadyServerRpc(ulong clientId, bool isReady)
     {
-        LobbyPlayer player = players.ToList().Find(x => x.ClientId.Equals(clientId));
-        bool oldValue = player.isReady;
-        player.isReady = isReady;
+        var player = GameServer.Instance.Connections.ToList().Find(x => x.Key.Equals(clientId));
+        bool oldValue = readyStatus[player.Key];
+        readyStatus[player.Key] = isReady;
         if (oldValue != isReady)
         {
             UpdateUI();
@@ -203,7 +148,7 @@ public partial class LobbyManager : NetworkBehaviour
         {
             Send = new ClientRpcSendParams
             {
-                TargetClientIds = players.ToList().ConvertAll<ulong>(player => player.ClientId).ToArray(),
+                TargetClientIds = GameServer.Instance.Connections.Values.ToList().ConvertAll<ulong>(player => player.ClientId).ToArray(),
             }
         };
 
@@ -219,9 +164,9 @@ public partial class LobbyManager : NetworkBehaviour
     public void PlayerReadyClientRpc(ulong clientId, bool isReady, ClientRpcParams clientRpcParams = default)
     {
         // update player list
-        LobbyPlayer player = players.ToList().Find(x => x.ClientId.Equals(clientId));
-        bool oldValue = player.isReady;
-        player.isReady = isReady;
+        var player = GameServer.Instance.Connections.Values.ToList().Find(x => x.ClientId.Equals(clientId));
+        bool oldValue = readyStatus[player.ClientId];
+        readyStatus[player.ClientId] = isReady;
         if (oldValue != isReady)
         {
             UpdateUI();
@@ -230,17 +175,8 @@ public partial class LobbyManager : NetworkBehaviour
 
     public void LeaveLobby()
     {
-        if (IsHost)
-        {
-            //shut down server and go back to main menu.
-            NetworkManager.Singleton.StopHost();
-            UnityEngine.SceneManagement.SceneManager.LoadScene(menuScene);
-        } else
-        {
-            NetworkManager.Singleton.StopClient();
-            UnityEngine.SceneManagement.SceneManager.LoadScene(menuScene);
-
-        }
+        NetworkManager.Singleton.Shutdown();
+        UnityEngine.SceneManagement.SceneManager.LoadScene(menuScene);
     }
 
 

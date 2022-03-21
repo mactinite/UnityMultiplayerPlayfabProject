@@ -1,7 +1,5 @@
 
-using MLAPI;
-using MLAPI.Messaging;
-using MLAPI.NetworkVariable;
+using Unity.Netcode;
 using UnityEngine;
 using ECM.Controllers;
 using TMPro;
@@ -13,7 +11,7 @@ using mactinite.ToolboxCommons;
 using Random = UnityEngine.Random;
 using UnityEngine.InputSystem;
 using ECM.Examples;
-using MLAPI.Logging;
+using Unity.Collections;
 
 namespace Game
 {
@@ -22,7 +20,7 @@ namespace Game
 
         public float speed = 5f;
         public BaseCharacterController controller;
-        public NetworkVariable<string> playerNameNetworkVariable = new NetworkVariable<string>();
+        public NetworkVariable<FixedString32Bytes> playerNameNetworkVariable = new NetworkVariable<FixedString32Bytes>();
         public NetworkVariable<float> healthNetworkVariable = new NetworkVariable<float>(100);
         private float _currentHealth = 100;
         public float maxHealth = 100;
@@ -34,11 +32,12 @@ namespace Game
 
         private void Start()
         {
-            playerNameNetworkVariable.Settings.WritePermission = NetworkVariablePermission.OwnerOnly;
-            playerNameNetworkVariable.Settings.ReadPermission = NetworkVariablePermission.Everyone;
-
-            healthNetworkVariable.Settings.WritePermission = NetworkVariablePermission.ServerOnly;
-            healthNetworkVariable.Settings.ReadPermission = NetworkVariablePermission.Everyone;
+            // playerNameNetworkVariable.Settings.WritePermission = NetworkVariablePermission.OwnerOnly;
+            // playerNameNetworkVariable.Settings.ReadPermission = NetworkVariablePermission.Everyone;
+            //
+            // healthNetworkVariable.Settings.WritePermission = NetworkVariablePermission.ServerOnly;
+            // healthNetworkVariable.Settings.ReadPermission = NetworkVariablePermission.Everyone;
+            
             _currentHealth = maxHealth;
             if (IsServer)
             {
@@ -74,7 +73,7 @@ namespace Game
             }
         }
 
-        private void PlayerNameChanged(string previousValue, string newValue)
+        private void PlayerNameChanged(FixedString32Bytes previousValue, FixedString32Bytes newValue)
         {
             if (!IsOwner && previousValue != newValue)
             {
@@ -82,7 +81,7 @@ namespace Game
             }
         }
 
-        public override void NetworkStart()
+        public override void OnNetworkSpawn()
         {
             if (!IsLocalPlayer)
             {

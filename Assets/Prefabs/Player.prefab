@@ -17,6 +17,8 @@ GameObject:
   - component: {fileID: 2899833035281389711}
   - component: {fileID: 6754878336664591228}
   - component: {fileID: 8891403474488042924}
+  - component: {fileID: 3374485637640629116}
+  - component: {fileID: 2714413884296754950}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -163,14 +165,45 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speed: 5
   controller: {fileID: 1154811024954191106}
-  nameplate: {fileID: 0}
   playerNameNetworkVariable:
-    m_InternalValue: 
+    m_InternalValue:
+      utf8LengthInBytes: 0
+      bytes:
+        offset0000:
+          byte0000: 0
+          byte0001: 0
+          byte0002: 0
+          byte0003: 0
+          byte0004: 0
+          byte0005: 0
+          byte0006: 0
+          byte0007: 0
+          byte0008: 0
+          byte0009: 0
+          byte0010: 0
+          byte0011: 0
+          byte0012: 0
+          byte0013: 0
+          byte0014: 0
+          byte0015: 0
+        byte0016: 0
+        byte0017: 0
+        byte0018: 0
+        byte0019: 0
+        byte0020: 0
+        byte0021: 0
+        byte0022: 0
+        byte0023: 0
+        byte0024: 0
+        byte0025: 0
+        byte0026: 0
+        byte0027: 0
+        byte0028: 0
+        byte0029: 0
   healthNetworkVariable:
     m_InternalValue: 100
   maxHealth: 100
-  isDead: 1
-  playerDisplay: {fileID: 0}
+  isDead: 0
   remotePlayerLayer: 0
 --- !u!114 &6754878336664591228
 MonoBehaviour:
@@ -184,11 +217,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  NetworkInstanceId: 0
-  PrefabHash: 1897319656204293034
-  PrefabHashGenerator: Player
+  GlobalObjectIdHash: 951099334
   AlwaysReplicateAsRoot: 0
   DontDestroyWithOwner: 0
+  AutoObjectParentSync: 1
 --- !u!114 &8891403474488042924
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -202,15 +234,46 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   input: {fileID: 0}
-  projectilePrefab: {fileID: 0}
-  aimDistance: 200
-  aimSensMultiplier: 0.75
-  controller: {fileID: 1154811024954191106}
-  characterModel: {fileID: 4178803733718713433}
   cam: {fileID: 0}
-  hitMask:
-    serializedVersion: 2
-    m_Bits: 65
+--- !u!114 &3374485637640629116
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5298309831249707235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e96cb6065543e43c4a752faaa1468eb1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  SyncPositionX: 1
+  SyncPositionY: 1
+  SyncPositionZ: 1
+  SyncRotAngleX: 1
+  SyncRotAngleY: 1
+  SyncRotAngleZ: 1
+  SyncScaleX: 0
+  SyncScaleY: 0
+  SyncScaleZ: 0
+  PositionThreshold: 0.001
+  RotAngleThreshold: 0.01
+  ScaleThreshold: 0.01
+  InLocalSpace: 0
+  Interpolate: 1
+  CanCommitToTransform: 0
+--- !u!114 &2714413884296754950
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5298309831249707235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f6c0be61502bb534f922ebb746851216, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &3836923992756484360
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -294,6 +357,25 @@ Transform:
 --- !u!1 &4178803733718713433 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 0acb930a9230eb247ac0bde260e10f69,
+    type: 3}
+  m_PrefabInstance: {fileID: 3836923992756484360}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &7253466603570021903
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4178803733718713433}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Animator: {fileID: 7229943862556148889}
+--- !u!95 &7229943862556148889 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 0acb930a9230eb247ac0bde260e10f69,
     type: 3}
   m_PrefabInstance: {fileID: 3836923992756484360}
   m_PrefabAsset: {fileID: 0}

@@ -1,6 +1,5 @@
 using Game;
-using MLAPI;
-using MLAPI.Messaging;
+using Unity.Netcode;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -17,7 +16,7 @@ public class Projectile : NetworkBehaviour
     {
     }
 
-    public override void NetworkStart()
+    public override void OnNetworkSpawn()
     {
         rigidBody = GetComponent<Rigidbody>();
         rigidBody.AddForce(transform.forward * velocity, ForceMode.VelocityChange);

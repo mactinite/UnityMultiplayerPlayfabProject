@@ -6,10 +6,10 @@ using PlayFab;
 using PlayFab.ClientModels;
 using PlayFab.Helpers;
 using System;
-using MLAPI;
+using Unity.Netcode;
 using System.Text;
 using UnityEngine.UI;
-using MLAPI.Transports.UNET;
+using Unity.Netcode.Transports.UNET;
 using mactinite.ToolboxCommons;
 
 /// <summary>
@@ -68,7 +68,6 @@ public class GameClient : MonoBehaviour
             // lets authenticate silently (no username an p/w).
             ActivateClient();
             _authService.Authenticate(Authtypes.Silent);
-            PlayFabAuthService.OnLoginSuccess += OnServerLogin;
         }
     }
 
@@ -95,19 +94,7 @@ public class GameClient : MonoBehaviour
         var netManager = NetworkManager.Singleton;
         if (netManager.LocalClientId == clientId)
         {
-            if (netManager.IsHost)
-            {
-                netManager.StopHost();
-
-            }
-            else if (netManager.IsClient)
-            {
-                netManager.StopClient();
-            }
-            else if (netManager.IsServer)
-            {
-                netManager.StopServer();
-            }
+            netManager.Shutdown();
             UnityEngine.SceneManagement.SceneManager.LoadScene(menuScene);
         }
 

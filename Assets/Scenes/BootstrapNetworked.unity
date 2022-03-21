@@ -2283,12 +2283,6 @@ MonoBehaviour:
   ConnectAddress: 127.0.0.1
   ConnectPort: 7777
   ServerListenPort: 7777
-  ServerWebsocketListenPort: 8887
-  SupportWebsocket: 1
-  Channels: []
-  UseMLAPIRelay: 0
-  MLAPIRelayAddress: 184.72.104.138
-  MLAPIRelayPort: 8888
   MessageSendMode: 0
 --- !u!114 &1742384077
 MonoBehaviour:
@@ -2302,62 +2296,41 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 593a2fe42fa9d37498c96f9a383b6521, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  DontDestroy: 1
   RunInBackground: 1
   LogLevel: 1
   NetworkConfig:
     ProtocolVersion: 0
     NetworkTransport: {fileID: 1742384076}
-    RegisteredScenes:
-    - 
-    - Arena
-    - MenuScene
-    - MultiplayerScene
-    - Lobby
-    - NetworkManager
-    - BootstrapNetworked
-    AllowRuntimeSceneChanges: 0
+    PlayerPrefab: {fileID: 5298309831249707235, guid: b04ad59bccf2d1c4196856f9f208ab10,
+      type: 3}
     NetworkPrefabs:
-    - Prefab: {fileID: 5298309831249707235, guid: b04ad59bccf2d1c4196856f9f208ab10,
+    - Override: 0
+      Prefab: {fileID: 5298309831249707235, guid: b04ad59bccf2d1c4196856f9f208ab10,
         type: 3}
-      PlayerPrefab: 1
-    - Prefab: {fileID: 4778132732892917550, guid: 2c31aeefbb008b8459f1cf2a9763bafe,
+      SourcePrefabToOverride: {fileID: 0}
+      SourceHashToOverride: 0
+      OverridingTargetPrefab: {fileID: 0}
+    - Override: 0
+      Prefab: {fileID: 2928645058747836753, guid: eeac611fc6bf49648a2031ed5a6e5ff0,
         type: 3}
-      PlayerPrefab: 0
-    - Prefab: {fileID: 2928645058747836753, guid: eeac611fc6bf49648a2031ed5a6e5ff0,
-        type: 3}
-      PlayerPrefab: 0
-    PlayerPrefabHash:
-      rid: 0
-    CreatePlayerPrefab: 0
-    ReceiveTickrate: 64
-    NetworkTickIntervalSec: 0.05
-    MaxReceiveEventsPerTickRate: 500
-    EventTickrate: 64
+      SourcePrefabToOverride: {fileID: 0}
+      SourceHashToOverride: 0
+      OverridingTargetPrefab: {fileID: 0}
+    TickRate: 30
     ClientConnectionBufferTimeout: 10
-    ConnectionApproval: 0
+    ConnectionApproval: 1
     ConnectionData: 
     EnableTimeResync: 1
     TimeResyncInterval: 30
-    EnableNetworkVariable: 1
     EnsureNetworkVariableLengthSafety: 0
     EnableSceneManagement: 1
     ForceSamePrefabs: 1
-    UsePrefabSync: 0
     RecycleNetworkIds: 1
     NetworkIdRecycleDelay: 120
     RpcHashSize: 0
     LoadSceneTimeOut: 120
-    EnableMessageBuffering: 1
     MessageBufferTimeout: 20
     EnableNetworkLogs: 1
-  references:
-    version: 2
-    RefIds:
-    - rid: 0
-      type: {class: NullableBoolSerializable, ns: MLAPI.Configuration, asm: Unity.Multiplayer.MLAPI.Runtime}
-      data:
-        Value: 1897319656204293034
 --- !u!4 &1742384078
 Transform:
   m_ObjectHideFlags: 0

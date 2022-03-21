@@ -2,8 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using mactinite.ToolboxCommons;
-using MLAPI;
-using MLAPI.Messaging;
+using Unity.Netcode;
 using TMPro;
 
 public class ServerLog : NetworkBehaviour

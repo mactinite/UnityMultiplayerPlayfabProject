@@ -1,11 +1,11 @@
-using MLAPI;
+using Unity.Netcode;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using mactinite.ToolboxCommons;
 using System.Text;
-using MLAPI.SceneManagement;
-using MLAPI.Logging;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Game Server is the first custom layer on top of network manager. 
@@ -50,20 +50,6 @@ public class GameServer : SingletonMonobehavior<GameServer>
     {
         netManager = GetComponentInParent<NetworkManager>();
     }
-
-
-    public void StopServer()
-    {
-        netManager.StopServer();
-    }
-
-
-    public void StopHost()
-    {
-        netManager.StopHost();
-    }
-
-
     public void StartServer()
     {
 
@@ -86,7 +72,6 @@ public class GameServer : SingletonMonobehavior<GameServer>
         _connections = new Dictionary<ulong, PlayerNetworkConnection>();
         netManager.StartHost();
         SpawnServerLogger();
-
         if (PlayerIdentityApprovalCallback != null)
         {
             string hostPlayerID = Encoding.ASCII.GetString(netManager.NetworkConfig.ConnectionData);
@@ -107,7 +92,8 @@ public class GameServer : SingletonMonobehavior<GameServer>
                 ServerLog.Log($"{username} has joined.");
                 Connections.Add(netManager.LocalClientId, connection);
 
-                var progress = NetworkSceneManager.SwitchScene(lobbyScene);
+                var progress = NetworkManager.Singleton.SceneManager.LoadScene(lobbyScene, LoadSceneMode.Single);
+                
             });
         }
 
@@ -115,10 +101,17 @@ public class GameServer : SingletonMonobehavior<GameServer>
 
     public void StartGame()
     {
-        var progress = NetworkSceneManager.SwitchScene(gameScene);
-        progress.OnClientLoadedScene += OnClientLoaded;
-        progress.OnComplete += OnAllClientsLoaded;
-        inGame = true;
+        NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneEvent;
+        NetworkManager.Singleton.SceneManager.LoadScene(gameScene, LoadSceneMode.Single);
+        
+    }
+
+    private void OnSceneEvent(ulong clientId, string sceneName, LoadSceneMode loadSceneMode){
+
+        if (sceneName == gameScene)
+        {
+            OnClientLoaded(clientId);
+        }
     }
 
     private void OnAllClientsLoaded(bool timedOut)
@@ -144,10 +137,9 @@ public class GameServer : SingletonMonobehavior<GameServer>
         {
             var go = Instantiate(serverLogPrefab);
             loggerInstance = go.GetComponent<ServerLog>();
-            go.GetComponent<NetworkObject>().Spawn(null, false);
+            go.GetComponent<NetworkObject>().Spawn(false);
         }
     }
-
 
 
     /// <summary>
@@ -182,7 +174,6 @@ public class GameServer : SingletonMonobehavior<GameServer>
                     Debug.Log($"Welcome {username}");
 
                     ServerLog.Log($"{username} has joined.");
-                    Connections.Add(clientId, connection);
                     callback(spawnPrefabOnConnect, null, true, GetSpawnPoint(), Quaternion.identity);
 
                 }
@@ -232,20 +223,28 @@ public class GameServer : SingletonMonobehavior<GameServer>
 
     private void ClientDisconnect(ulong ClientId)
     {
+
+        if (ClientId == 0)
+        {
+            GameServer.Instance.netManager.Shutdown();
+            Connections.Clear();
+            return;
+        }
+        
         // remove player data from connections dictionary
         if (_connections.ContainsKey(ClientId))
         {
             ServerLog.Log($"{_connections[ClientId].UserName} has left.");
-            _connections.Remove(ClientId);
+            Connections.Remove(ClientId);
         }
-
+        
         OnPlayerRemoved?.Invoke(ClientId);
     }
 
     private void ClientConnected(ulong ClientId)
     {
         Debug.Log($"Client Connected : {ClientId}");
-
+        
         ServerLog.Log($"{Connections[ClientId].UserName} has joined.");
 
         // spawn prefabs for newly connecting clients.
@@ -257,12 +256,6 @@ public class GameServer : SingletonMonobehavior<GameServer>
 
         OnPlayerAdded?.Invoke(ClientId);
     }
-
-    //// method for clients to ask the server for the players list.
-    //public static Dictionary<ulong, PlayerNetworkConnection> GetPlayersFromClient()
-    //{
-
-    //}
 }
 
 
