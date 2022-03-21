@@ -31,6 +31,8 @@ namespace ECM.Examples
         [SerializeField]
         private float _runSpeed = 5.0f;
 
+        [SerializeField]
+        private bool rotateToMoveDirection = false;
         #endregion
 
         #region INPUT SYSTEM
@@ -155,12 +157,28 @@ namespace ECM.Examples
 
             crouch = input.actions["Crouch"].ReadValue<float>() > 0;
 
+
             animator.SetFloat("Horizontal", moveDirection.x, 0.1f, Time.deltaTime);
             animator.SetFloat("Vertical", moveDirection.z, 0.1f, Time.deltaTime);
-
+            animator.SetBool("Sprinting", walk);
+            
+            
             // Transform moveDirection vector to be relative to camera view direction
-
             moveDirection = moveDirection.relativeTo(playerCamera ? playerCamera : Camera.main.transform);
+
+
+        }
+
+        protected override void UpdateRotation()
+        {
+
+            if (rotateToMoveDirection)
+            {
+                base.UpdateRotation();
+            } else
+            {
+                RotateTowards(playerCamera ? playerCamera.forward : Camera.main.transform.forward, true);
+            }
         }
 
         #endregion

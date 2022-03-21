@@ -29,6 +29,7 @@ public class GameClient : MonoBehaviour
     public TMP_Text loginErrorText;
     public Toggle rememberMeToggle;
     public CameraFollow cameraFollow;
+    public bool silentAuthentication = true;
 
     [SerializeField, Scene]
     public string menuScene;
@@ -36,7 +37,6 @@ public class GameClient : MonoBehaviour
     public void Start()
     {
         UnityEngine.SceneManagement.SceneManager.LoadScene(menuScene);
-
         bool isServer = false;
         var args = CommandLineUtility.GetArgs();
         Debug.Log($"Reading Args");
@@ -49,18 +49,24 @@ public class GameClient : MonoBehaviour
                 isServer = true;
             }
         }
-
-
-        if (!isServer)
+        
+        if (!silentAuthentication)
         {
             _authService.InfoRequestParams = new GetPlayerCombinedInfoRequestParams();
             _authService.InfoRequestParams.GetUserAccountInfo = true;
             ActivateClient();
             _authService.Authenticate(Authtypes.UsernameAndPassword);
             loginErrorText.gameObject.SetActive(false);
-        } else
+        } else if(isServer)
         {
             // when running as a dedicated server we authenticate silently.
+            _authService.Authenticate(Authtypes.Silent);
+            PlayFabAuthService.OnLoginSuccess += OnServerLogin;
+        }
+        else
+        {
+            // lets authenticate silently (no username an p/w).
+            ActivateClient();
             _authService.Authenticate(Authtypes.Silent);
             PlayFabAuthService.OnLoginSuccess += OnServerLogin;
         }

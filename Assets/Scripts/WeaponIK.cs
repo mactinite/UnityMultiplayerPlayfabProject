@@ -14,7 +14,6 @@ public class WeaponIK : MonoBehaviour
 {
     public Transform targetTransform;
     public Transform aimTransform;
-    public Transform bone;
     [Range(0,1)]
     public float weight = 1f;
     public int iterations = 10;

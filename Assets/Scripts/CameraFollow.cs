@@ -18,8 +18,6 @@ public class CameraFollow : SingletonMonobehavior<CameraFollow>
 
     public CinemachineVirtualCamera followCam;
     public CinemachineVirtualCamera aimCam;
-    public RectTransform reticle;
-    public RectTransform blockingReticle;
     public float smoothTime = 1f;
     public float rotationSmoothTime = 1f;
 
@@ -47,8 +45,6 @@ public class CameraFollow : SingletonMonobehavior<CameraFollow>
         }
 
         aimCam.gameObject.SetActive(false);
-        blockingReticle.gameObject.SetActive(false);
-        reticle.gameObject.SetActive(false);
         SetCursorState(true);
         input.actions["Release Mouse"].performed += ReleaseCursor;
         input.actions["Release Mouse"].canceled += LockCursor;
@@ -84,16 +80,6 @@ public class CameraFollow : SingletonMonobehavior<CameraFollow>
             }
 
             var desiredPosition = followTarget.position;
-
-            if (!groundDetection.isOnGround && followTarget.position.y > lastYPosition)
-            {
-                desiredPosition = new Vector3(followTarget.position.x, lastYPosition, followTarget.position.z);
-            }
-            else
-            {
-                lastYPosition = followTarget.position.y;
-            }
-
             cameraTrackingTransform.position = Vector3.SmoothDamp(cameraTrackingTransform.position, desiredPosition, ref _vel, smoothTime);
             Rotation();
         }
@@ -128,12 +114,12 @@ public class CameraFollow : SingletonMonobehavior<CameraFollow>
 
     public void Rotation()
     {
-        mousePos = input.actions["Look"].ReadValue<Vector2>() * Time.deltaTime;
-        _look.x = mousePos.x * lateralSensitivity;
-        _look.y = -(mousePos.y * verticalSensitivity);
+            mousePos = input.actions["Look"].ReadValue<Vector2>() * Time.deltaTime;
+            _look.x = mousePos.x * lateralSensitivity;
+            _look.y = -(mousePos.y * verticalSensitivity);
+
 
         cameraTrackingTransform.transform.rotation *= Quaternion.AngleAxis(_look.x * rotationPower, Vector3.up);
-
         cameraTrackingTransform.transform.rotation *= Quaternion.AngleAxis(_look.y * rotationPower, Vector3.right);
 
 
