@@ -112,7 +112,7 @@ namespace Game
         private void Success(GetAccountInfoResult result)
         {
             string name = result.AccountInfo.Username;
-            playerNameNetworkVariable.Value = name;
+            playerNameNetworkVariable.Value = name ?? "No Username";
         }
 
 

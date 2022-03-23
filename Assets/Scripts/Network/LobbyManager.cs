@@ -8,6 +8,7 @@ using UnityEngine.UI;
 using TMPro;
 using mactinite.ToolboxCommons;
 using PlayFab.ServerModels;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Lobby manager will read the connections from game server and render a list. 
@@ -22,12 +23,13 @@ public partial class LobbyManager : NetworkBehaviour
     public GameObject playerList;
     public GameObject playerListItemPrefab;
     public Dictionary<ulong, bool> readyStatus = new Dictionary<ulong, bool>();
+    public Dictionary<ulong, GameObject> lobbyListEntries = new Dictionary<ulong, GameObject>();
 
 
     [SerializeField, Scene]
     private string menuScene;
     
-    public override void OnNetworkSpawn()
+    public void Start()
     {
         // server needs to change the Ready button to a start button.
         if (IsServer)
@@ -37,8 +39,14 @@ public partial class LobbyManager : NetworkBehaviour
             startButton.onClick.AddListener(StartGame);
             GameServer.Instance.OnPlayerAdded += PlayerAdded;
             GameServer.Instance.OnPlayerRemoved += PlayerRemoved;
-            PlayerAdded(0);
-            UpdateUI();
+
+            // this should handle anyone who connected before the lobby manager loaded.
+            foreach (var clientid in NetworkManager.ConnectedClientsIds)
+            {
+                if(!lobbyListEntries.ContainsKey(clientid))
+                    PlayerAdded(clientid);
+            }
+            
             startButton.interactable = CheckAllPlayersReady();
 
         }
@@ -86,49 +94,37 @@ public partial class LobbyManager : NetworkBehaviour
 
     private void PlayerRemoved(ulong clientId)
     {
-        readyStatus.Remove(clientId);
-        UpdateUI();
+        PlayerLeftClientRpc(clientId);
     }
 
     private void PlayerAdded(ulong clientId)
     {
-        readyStatus.Add(clientId, false);
-        UpdateUI();
-    }
+        PlayerJoinedClientRpc(clientId, GameServer.Instance.Connections[clientId]);
 
-
-    private void UpdateUI()
-    {
-        // clear list of players
-        foreach (Transform child in playerList.transform)
+        // Send all the player data to newly joining players. 
+        ClientRpcParams clientRpcParams = new ClientRpcParams
         {
-            Destroy(child.gameObject);
-        }
-
-        // now lets create new ones for everyone.
-        foreach(var player in GameServer.Instance.Connections)
-        {
-            GameObject listItem = Instantiate(playerListItemPrefab, playerList.transform);
-            TMP_Text[] text = listItem.GetComponentsInChildren<TMP_Text>();
-            text[0].text = player.Value.PlayerId;
-            text[1].text = readyStatus[player.Key] ? "READY" : "NOT READY";
-
-            if(player.Value.ClientId == NetworkManager.Singleton.ServerClientId)
+            Send = new ClientRpcSendParams
             {
-                text[1].text = "HOST";
+                TargetClientIds = new List<ulong>(){clientId}
             }
+        };
+        foreach (var player in GameServer.Instance.Connections.Values)
+        {
+            if(player.ClientId != clientId)
+                PlayerJoinedClientRpc(player.ClientId, player, clientRpcParams);
         }
+        
     }
+    
 
     [ServerRpc(RequireOwnership = false)]
     public void ClientReadyServerRpc(ulong clientId, bool isReady)
     {
-        var player = GameServer.Instance.Connections.ToList().Find(x => x.Key.Equals(clientId));
-        bool oldValue = readyStatus[player.Key];
-        readyStatus[player.Key] = isReady;
+        bool oldValue = readyStatus[clientId];
+        readyStatus[clientId] = isReady;
         if (oldValue != isReady)
         {
-            UpdateUI();
             BroadcastRpc(clientId, isReady);
 
             if (CheckAllPlayersReady())
@@ -141,6 +137,61 @@ public partial class LobbyManager : NetworkBehaviour
         }
     }
 
+
+    [ClientRpc]
+    public void PlayerJoinedClientRpc(ulong clientId, PlayerNetworkConnection connectionData,
+        ClientRpcParams clientRpcParams = default)
+    {
+
+        if (readyStatus.ContainsKey(clientId))
+        {
+            readyStatus[clientId] = false;
+        }
+        else
+        {
+            readyStatus.Add(clientId, false);
+        }
+        
+        if (lobbyListEntries.TryGetValue(clientId, out var listItem))
+        {
+            TMP_Text[] text = listItem.GetComponentsInChildren<TMP_Text>();
+            text[0].text = connectionData.UserName.ToString();
+            text[1].text = readyStatus[clientId] ? "READY" : "NOT READY";
+
+            if (clientId == NetworkManager.Singleton.ServerClientId)
+            {
+                text[1].text = "HOST";
+            }
+            
+        }
+        else
+        {
+            GameObject newListItem = Instantiate(playerListItemPrefab, playerList.transform);
+            TMP_Text[] text = newListItem.GetComponentsInChildren<TMP_Text>();
+            text[0].text = connectionData.UserName.ToString();
+            text[1].text = readyStatus[clientId] ? "READY" : "NOT READY";
+
+            if (clientId == NetworkManager.Singleton.ServerClientId)
+            {
+                text[1].text = "HOST";
+            }
+            
+            lobbyListEntries.Add(clientId, newListItem);
+        }
+        
+            
+    }
+
+    [ClientRpc]
+    public void PlayerLeftClientRpc(ulong clientId, ClientRpcParams clientRpcParams = default)
+    {
+        if (lobbyListEntries.ContainsKey(clientId))
+        {
+            Destroy(lobbyListEntries[clientId]);
+            lobbyListEntries.Remove(clientId);
+        }
+    }
+
     private void BroadcastRpc(ulong clientId, bool isReady)
     {
         // broadcast RPC
@@ -148,7 +199,7 @@ public partial class LobbyManager : NetworkBehaviour
         {
             Send = new ClientRpcSendParams
             {
-                TargetClientIds = GameServer.Instance.Connections.Values.ToList().ConvertAll<ulong>(player => player.ClientId).ToArray(),
+                TargetClientIds = GameServer.Instance.Connections.Keys.ToList(),
             }
         };
 
@@ -163,22 +214,32 @@ public partial class LobbyManager : NetworkBehaviour
     [ClientRpc]
     public void PlayerReadyClientRpc(ulong clientId, bool isReady, ClientRpcParams clientRpcParams = default)
     {
-        // update player list
-        var player = GameServer.Instance.Connections.Values.ToList().Find(x => x.ClientId.Equals(clientId));
-        bool oldValue = readyStatus[player.ClientId];
-        readyStatus[player.ClientId] = isReady;
-        if (oldValue != isReady)
+        if (readyStatus.ContainsKey(clientId))
         {
-            UpdateUI();
+            readyStatus[clientId] = isReady;
+            TMP_Text[] text = lobbyListEntries[clientId].GetComponentsInChildren<TMP_Text>();
+            text[1].text = isReady ? "READY" : "NOT READY";
+            text[1].color = isReady ? Color.green : Color.red;
         }
     }
 
     public void LeaveLobby()
     {
-        NetworkManager.Singleton.Shutdown();
-        UnityEngine.SceneManagement.SceneManager.LoadScene(menuScene);
+       
+        GameServer.Instance.Shutdown();
+        SceneManager.LoadScene(menuScene, LoadSceneMode.Single);
+
     }
 
+    public override void OnDestroy()
+    {
+        // clean up event delegates
+        if (GameServer.Instance != null)
+        {
+            GameServer.Instance.OnPlayerAdded -= PlayerAdded;
+            GameServer.Instance.OnPlayerRemoved -= PlayerRemoved;
+        }
 
-
+        base.OnDestroy();
+    }
 }

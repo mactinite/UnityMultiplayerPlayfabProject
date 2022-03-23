@@ -481,7 +481,19 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 470135143}
   m_OnClick:
     m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 1742384081}
+        m_TargetAssemblyTypeName: GameClient, Assembly-CSharp
+        m_MethodName: SubmitAuth
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
 --- !u!114 &470135143
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2316,6 +2328,12 @@ MonoBehaviour:
       SourcePrefabToOverride: {fileID: 0}
       SourceHashToOverride: 0
       OverridingTargetPrefab: {fileID: 0}
+    - Override: 0
+      Prefab: {fileID: 6556933856186845821, guid: e75076d955893f941ad37d895cc66127,
+        type: 3}
+      SourcePrefabToOverride: {fileID: 0}
+      SourceHashToOverride: 0
+      OverridingTargetPrefab: {fileID: 0}
     TickRate: 30
     ClientConnectionBufferTimeout: 10
     ConnectionApproval: 1
@@ -2401,7 +2419,7 @@ MonoBehaviour:
   loginErrorText: {fileID: 1350794351}
   rememberMeToggle: {fileID: 356931681}
   cameraFollow: {fileID: 0}
-  silentAuthentication: 1
+  silentAuthentication: 0
   menuScene: MultiplayerScene
 --- !u!1 &2045369657
 GameObject:

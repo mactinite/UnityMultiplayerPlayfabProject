@@ -95,7 +95,7 @@ public class AgentListener : MonoBehaviour
 
     private void OnPlayerRemoved(ulong clientId)
     {
-        string playfabId = GameServer.Instance.Connections[clientId].PlayerId;
+        string playfabId = GameServer.Instance.Connections[clientId].PlayerId.ToString();
         ConnectedPlayer player = _connectedPlayers.Find(x => x.PlayerId.Equals(playfabId, StringComparison.OrdinalIgnoreCase));
         _connectedPlayers.Remove(player);
         PlayFabMultiplayerAgentAPI.UpdateConnectedPlayers(_connectedPlayers);
@@ -103,7 +103,7 @@ public class AgentListener : MonoBehaviour
 
     private void OnPlayerAdded(ulong clientId)
     {
-        string playfabId = GameServer.Instance.Connections[clientId].PlayerId;
+        string playfabId = GameServer.Instance.Connections[clientId].PlayerId.ToString();
         _connectedPlayers.Add(new ConnectedPlayer(playfabId));
         PlayFabMultiplayerAgentAPI.UpdateConnectedPlayers(_connectedPlayers);
     }

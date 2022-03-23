@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using mactinite.ToolboxCommons;
 using System.Text;
+using Unity.Collections;
 using UnityEngine.SceneManagement;
 
 /// <summary>
@@ -17,7 +18,7 @@ public class GameServer : SingletonMonobehavior<GameServer>
     [SerializeField]
     private bool inGame = false;
     private NetworkManager netManager;
-
+    
     public Action<ulong> OnPlayerAdded;
     public Action<ulong> OnPlayerRemoved;
 
@@ -36,12 +37,14 @@ public class GameServer : SingletonMonobehavior<GameServer>
     public string lobbyScene;
 
     public int maxPlayers = 16;
-
     public Dictionary<ulong, PlayerNetworkConnection> Connections
     {
         get { return _connections; }
         private set { _connections = value; }
     }
+
+    public NetworkManager NetworkManager => netManager;
+
     private Dictionary<ulong, PlayerNetworkConnection> _connections;
     [SerializeField]
     private bool spawnPrefabOnConnect;
@@ -49,69 +52,55 @@ public class GameServer : SingletonMonobehavior<GameServer>
     void Start()
     {
         netManager = GetComponentInParent<NetworkManager>();
+        
     }
     public void StartServer()
     {
 
-        netManager.OnClientConnectedCallback += ClientConnected;
-        netManager.OnClientDisconnectCallback += ClientDisconnect;
-        netManager.NetworkConfig.ConnectionApproval = true;
-        netManager.ConnectionApprovalCallback += ApproveConnection;
+        NetworkManager.OnClientConnectedCallback += ClientConnected;
+        NetworkManager.OnClientDisconnectCallback += ClientDisconnect;
+        NetworkManager.NetworkConfig.ConnectionApproval = true;
+        NetworkManager.ConnectionApprovalCallback += ApproveConnection;
         _connections = new Dictionary<ulong, PlayerNetworkConnection>();
-        netManager.StartServer();
+        NetworkManager.StartServer();
         SpawnServerLogger();
+        NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneEvent;
+        
+        GoToLobby();
     }
 
     public void StartHost()
     {
 
-        netManager.OnClientConnectedCallback += ClientConnected;
-        netManager.OnClientDisconnectCallback += ClientDisconnect;
-        netManager.NetworkConfig.ConnectionApproval = true;
-        netManager.ConnectionApprovalCallback += ApproveConnection;
+        NetworkManager.OnClientConnectedCallback += ClientConnected;
+        NetworkManager.OnClientDisconnectCallback += ClientDisconnect;
+        NetworkManager.NetworkConfig.ConnectionApproval = true;
+        NetworkManager.ConnectionApprovalCallback += ApproveConnection;
         _connections = new Dictionary<ulong, PlayerNetworkConnection>();
-        netManager.StartHost();
+        NetworkManager.StartHost();
         SpawnServerLogger();
-        if (PlayerIdentityApprovalCallback != null)
-        {
-            string hostPlayerID = Encoding.ASCII.GetString(netManager.NetworkConfig.ConnectionData);
-            PlayerIdentityApprovalCallback(hostPlayerID, (approved, username) =>
-            {
-                PlayerNetworkConnection connection = new PlayerNetworkConnection
-                {
-                    IsAuthenticated = true,
-                    ClientId = netManager.LocalClientId,
-                    PlayerId = hostPlayerID,
-                    UserName = username
-                };
+        NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneEvent;
 
-                Debug.Log("End connection approval check");
-                Debug.Log("Result: ACCEPTED");
-                Debug.Log($"Welcome {username}");
-
-                ServerLog.Log($"{username} has joined.");
-                Connections.Add(netManager.LocalClientId, connection);
-
-                var progress = NetworkManager.Singleton.SceneManager.LoadScene(lobbyScene, LoadSceneMode.Single);
-                
-            });
-        }
-
+        GoToLobby();
     }
 
+    public void GoToLobby()
+    {
+        NetworkManager.Singleton.SceneManager.LoadScene(lobbyScene, LoadSceneMode.Single);
+    }
+    
     public void StartGame()
     {
-        NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneEvent;
         NetworkManager.Singleton.SceneManager.LoadScene(gameScene, LoadSceneMode.Single);
-        
     }
 
     private void OnSceneEvent(ulong clientId, string sceneName, LoadSceneMode loadSceneMode){
 
         if (sceneName == gameScene)
         {
-            OnClientLoaded(clientId);
+            HandleInGameClientLoad(clientId);
         }
+        
     }
 
     private void OnAllClientsLoaded(bool timedOut)
@@ -121,7 +110,7 @@ public class GameServer : SingletonMonobehavior<GameServer>
         NetworkLog.LogInfoServer($"All clients loaded! timed out? {timedOutString}.");
     }
 
-    private void OnClientLoaded(ulong clientId)
+    private void HandleInGameClientLoad(ulong clientId)
     {
         //spawn the player prefab and give ownership to the client.
         var go = Instantiate(playerPrefab, GetSpawnPoint(), Quaternion.identity);
@@ -130,10 +119,12 @@ public class GameServer : SingletonMonobehavior<GameServer>
         // we'll dispose of the player objects when we change scenes.
         netObj.SpawnAsPlayerObject(clientId, destroyWithScene: true);
     }
+    
+    
 
     void SpawnServerLogger()
     {
-        if (netManager.IsServer)
+        if (NetworkManager.IsServer)
         {
             var go = Instantiate(serverLogPrefab);
             loggerInstance = go.GetComponent<ServerLog>();
@@ -161,21 +152,25 @@ public class GameServer : SingletonMonobehavior<GameServer>
             {
                 if (approved)
                 {
+
+                    string sanitizedUsername = username ?? "No Username"; 
+                    
                     PlayerNetworkConnection connection = new PlayerNetworkConnection
                     {
                         IsAuthenticated = true,
                         ClientId = clientId,
                         PlayerId = playerID,
-                        UserName = username
+                        UserName = sanitizedUsername
                     };
 
                     Debug.Log("End connection approval check");
                     Debug.Log("Result: ACCEPTED");
-                    Debug.Log($"Welcome {username}");
+                    Debug.Log($"Welcome {sanitizedUsername}");
 
-                    ServerLog.Log($"{username} has joined.");
+                    ServerLog.Log($"{sanitizedUsername} has joined.");
+                    _connections.Add(clientId, connection);
                     callback(spawnPrefabOnConnect, null, true, GetSpawnPoint(), Quaternion.identity);
-
+                    
                 }
                 else
                 {
@@ -198,7 +193,7 @@ public class GameServer : SingletonMonobehavior<GameServer>
             Debug.Log("End connection approval check");
             Debug.Log("Result: ACCEPTED");
             Debug.Log($"Welcome {playerID}");
-
+            _connections.Add(clientId, connection);
             callback(spawnPrefabOnConnect, null, true, GetSpawnPoint(), Quaternion.identity);
         }
 
@@ -226,8 +221,7 @@ public class GameServer : SingletonMonobehavior<GameServer>
 
         if (ClientId == 0)
         {
-            GameServer.Instance.netManager.Shutdown();
-            Connections.Clear();
+            Shutdown();
             return;
         }
         
@@ -235,38 +229,63 @@ public class GameServer : SingletonMonobehavior<GameServer>
         if (_connections.ContainsKey(ClientId))
         {
             ServerLog.Log($"{_connections[ClientId].UserName} has left.");
-            Connections.Remove(ClientId);
+            _connections.Remove(ClientId);
         }
         
         OnPlayerRemoved?.Invoke(ClientId);
     }
 
+    public void Shutdown()
+    {
+        NetworkManager.OnClientConnectedCallback -= ClientConnected;
+        NetworkManager.OnClientDisconnectCallback -= ClientDisconnect;
+        NetworkManager.ConnectionApprovalCallback -= ApproveConnection;
+        NetworkManager.Shutdown();
+        if (NetworkManager.IsServer)
+        {
+            Connections.Clear();
+        }
+    }
+
     private void ClientConnected(ulong ClientId)
     {
-        Debug.Log($"Client Connected : {ClientId}");
-        
-        ServerLog.Log($"{Connections[ClientId].UserName} has joined.");
 
         // spawn prefabs for newly connecting clients.
         if (inGame)
         {
             //spawn the player prefab and give ownership to the client.
-            OnClientLoaded(ClientId);
+            HandleInGameClientLoad(ClientId);
         }
 
         OnPlayerAdded?.Invoke(ClientId);
     }
+    
 }
 
 
 [Serializable]
-public class PlayerNetworkConnection
+public struct PlayerNetworkConnection : IEquatable<PlayerNetworkConnection>
 {
     public bool IsAuthenticated;
-    public string PlayerId;
-    public string LobbyId;
-    public string UserName;
+    public FixedString32Bytes PlayerId;
+    public FixedString32Bytes LobbyId;
+    public FixedString32Bytes UserName;
     public ulong ClientId;
+
+    public bool Equals(PlayerNetworkConnection other)
+    {
+        return IsAuthenticated == other.IsAuthenticated && PlayerId.Equals(other.PlayerId) && LobbyId.Equals(other.LobbyId) && UserName.Equals(other.UserName) && ClientId.Equals(other.ClientId);
+    }
+
+    public override bool Equals(object obj)
+    {
+        return obj is PlayerNetworkConnection other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(IsAuthenticated, PlayerId, LobbyId, UserName, ClientId);
+    }
 }
 
 public delegate void PlayerIdentityVerificationDelegate(bool verified, string username);
